@@ -1,7 +1,7 @@
 # P17 Light Meter — Native iOS Implementation Plan
 
 Created: October 20, 2026  
-Status: M0 foundation and first M1 reference slice implemented; simulator build and all nine tests passed. Remaining milestones are planned.  
+Status: M0 foundation and M1 exposure core implemented. M2 interface integration is next; M3–M5 remain planned.
 App name: **P17 Light Meter**. Use `P17LightMeter` for project and target identifiers.
 
 ## 1. Product goal
@@ -372,3 +372,15 @@ Update this plan as milestones complete and measurements replace assumptions. Re
 October 20, 2026: Added the foundation demo and Program target calculation. The demo deliberately uses the reference inputs rather than the eventual first-launch Bokeh defaults. ProgramExposure validates PENTAX inputs, applies ND once, and distinguishes fast-limit failure, physical-envelope feasibility with unknown mode policy, and slow-limit failure. A one-shot injectable LightMeter supports this fixed slice; the M3 streaming/capture lifecycle is still pending. No camera permission or imagery is used. Full M1 recommendation/Bokeh/profile work and the M2 reference interaction are not complete.
 
 Verification: five package tests and four simulator tests passed on Xcode 27.1 with iPhone 18 Pro / iOS 27.0. M0 simulator exit criteria are met; device signing remains a documented external setup requirement. No physical camera accuracy or complete M2 accessibility validation is claimed. See README for the exact commands.
+
+### M1 — Exposure core
+
+Implemented the pure Swift domain layer: phone EV100 conversion with a calibration offset, validated dial configuration, versioned stock profile/provenance, continuous Bokeh estimate, Program target feasibility, ND labels/factors and fractional custom filters, exact and third-stop minimums, inventory selection, and selected-filter comparison. Recommendations assess both physical shutter boundaries; unknown mode slow policies remain explicit. Optional caller-supplied scene uncertainty identifies boundary crossings and a stronger alternative only when that alternative covers both endpoints. It never adds a hidden safety stop or treats stability as accuracy.
+
+The stock profile is immutable compiled data rather than JSON: there is no imported profile data in v1, so no parser or migration layer is needed yet. Source links and version metadata live in `Pentax17Profile.swift`. A future empirical/imported profile must add validation at that boundary. No Program curve or aperture steps have been invented.
+
+Owned inventory is the supplied filter array. Include the no-filter entry explicitly if removing a filter is an available option; an empty array produces an empty-inventory result. Equal-strength filters are ordered by identifier for deterministic selection. The exact minimum drives eligibility; upward third-stop rounding is display information only.
+
+26 package tests cover the golden cases, numerical boundaries, invalid samples/configuration/filter inputs, signs, exposure round trips and monotonicity, selected/recommended separation, inventory gaps, and uncertainty crossing either boundary. The fixed demo remains unchanged; M2 will wire this API to mode/settings/filter interactions. Temporal recommendation hysteresis remains M3 work to tune with real readings.
+
+M1 verification: all 26 package tests and all four simulator regression tests passed on the documented iPhone 18 Pro / iOS 27.0 destination. The reference screen still shows 1/256 s. No UI layout or hardware behavior was changed in this milestone.

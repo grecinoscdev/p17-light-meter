@@ -2,7 +2,7 @@
 
 A native iPhone light meter in development for PENTAX 17 photographers. It will measure scene light and help answer: **“Which ND filter should I use for this shot?”**
 
-**Current status: M0 foundation and the first M1 calculation slice implemented.** The SwiftUI app displays an explicitly simulated reference reading: EV100 15 / PENTAX ISO 400 / EC 0 / target f/8 / ND8 → ≈1/256 s. It includes a local ExposureCore package, injectable fake meter, app tests, and a UI test. Live camera metering, editable settings, Bokeh modeling, automatic filter recommendations, and persistence are not implemented yet. The product features below remain planned.
+**Current status: M0 foundation and M1 exposure core implemented.** The core now supports phone-sample EV100 conversion, validated PENTAX settings, Program target feasibility, estimated Bokeh behavior, and ND inventory recommendations with explicit bright/slow failures and optional uncertainty checks. The SwiftUI screen still displays the fixed simulated reference scenario: EV100 15 / ISO 400 / EC 0 / f/8 / ND8 → ≈1/256 s. Interactive controls and connection of the new core to the screen are M2 work. Live camera metering and persistence remain planned.
 
 ## Start here
 
@@ -63,7 +63,7 @@ xcodebuild -project P17LightMeter.xcodeproj -scheme P17LightMeter \
   -derivedDataPath build test CODE_SIGNING_ALLOWED=NO
 ```
 
-Verified October 20, 2026: **5 package tests, 3 app-state tests, and 1 UI test passed**, including the simulator app build. Project/scheme syntax and local documentation links also passed validation. Xcode emitted simulator SDK-version and unused App Intents metadata diagnostics, but the test run completed successfully.
+Verified October 20, 2026: **26 package tests, 3 app-state tests, and 1 UI test passed**, including the simulator app build. Local documentation links and `git diff --check` passed. Xcode emitted simulator SDK-version and unused App Intents metadata diagnostics, but the test run completed successfully.
 
 The destination above is this machine's iPhone 18 Pro / iOS 27.0 simulator. On another Mac, use `xcrun simctl list devices available` and replace the ID with an installed iPhone simulator. The test command builds the app and runs app-state and UI tests; the separate Swift command runs domain tests. Build output is ignored under `build/`.
 
@@ -82,12 +82,12 @@ Implemented layout:
 | `P17LightMeter/Features/Meter/` | Demo view, main-actor state, and display formatting |
 | `P17LightMeter/Metering/` | One-shot meter protocol and deterministic fake; streaming lifecycle arrives in M3 |
 | `P17LightMeter/DesignSystem/` | Shared colors |
-| `Packages/ExposureCore/` | Validated Program target calculations, stock physical constants, and tests |
+| `Packages/ExposureCore/` | EV conversion, validated settings, versioned stock profile, Bokeh/Program assessment, ND policy, and tests |
 | `P17LightMeterTests/` | Fake reading, invalid data, cancellation, and display checks |
 | `P17LightMeterUITests/` | Reference scenario and simulated/Program qualification checks |
 | `doc/` | Research and visual reference |
 
-Persistence, settings, real capture, and a complete versioned camera profile remain future work.
+Persistence, settings UI, and real capture remain future work. The stock profile is compiled immutable data with version/provenance metadata; external profile import and empirical Program maps remain deferred. See [ExposureCore guide](Packages/ExposureCore/README.md) for API use and result semantics.
 
 The intended data flow is:
 
@@ -102,7 +102,7 @@ Camera access, calculations, storage, and UI each have a distinct responsibility
 ## Implementation roadmap
 
 - [x] **M0 — Foundation:** app, package, fake meter, and simulator build/tests verified. Physical signing remains unverified.
-- [ ] **M1 — Exposure core:** implement formulas, profiles, recommendations, and boundary tests.
+- [x] **M1 — Exposure core:** implemented formulas, stock profile, Bokeh/Program assessment, ND inventory policy, and golden/boundary tests.
 - [ ] **M2 — Reference UI:** build the main interaction with deterministic fake readings.
 - [ ] **M3 — Real metering:** add camera permission, preview, sampling, and lifecycle handling.
 - [ ] **M4 — Calibration and persistence:** save settings and validate corrected readings.

@@ -7,17 +7,13 @@ public enum ExposureError: Error, Equatable, Sendable {
     case invalidCompensation
     case invalidTargetAperture
     case invalidNDStops
+    case invalidPhoneSample
+    case invalidCalibrationOffset
+    case invalidFilterIdentifier
+    case duplicateFilterIdentifier
+    case invalidUncertainty
+    case invalidHandheldThreshold
     case unrepresentableExposure
-}
-
-/// Stock physical limits, version 1. Mode-specific slow limits remain unknown.
-/// Provenance: PLAN.md §4; Ricoh specifications for ISO, EC and shutter limits;
-/// f/16 is secondary-source evidence documented in the research report.
-public enum Pentax17Profile {
-    public static let supportedCameraISO = [50, 100, 125, 160, 200, 400, 800, 1600, 3200]
-    public static let fastestShutterSeconds = 1.0 / 350.0
-    public static let physicalSlowestShutterSeconds = 4.0
-    public static let apertureRange = 3.5...16.0
 }
 
 /// Physical feasibility at a requested aperture, not a prediction of Program's choice.
@@ -48,21 +44,9 @@ public enum ProgramExposure {
         ndStops: Double
     ) throws -> ProgramAssessment {
         guard sceneEV100.isFinite else { throw ExposureError.invalidSceneEV }
-        guard Pentax17Profile.supportedCameraISO.contains(cameraISO) else {
-            throw ExposureError.unsupportedCameraISO
-        }
-        // Tolerance accepts binary representations of exact third-stop dial values.
-        let dialTolerance = 1e-9
-        let compensationThirds = exposureCompensationEV * 3
-        guard exposureCompensationEV.isFinite,
-              (-2.0...2.0).contains(exposureCompensationEV),
-              abs(compensationThirds - compensationThirds.rounded()) < dialTolerance else {
-            throw ExposureError.invalidCompensation
-        }
-        guard targetAperture.isFinite,
-              Pentax17Profile.apertureRange.contains(targetAperture) else {
-            throw ExposureError.invalidTargetAperture
-        }
+        _ = try ExposureConfiguration(cameraISO: cameraISO,
+                                      exposureCompensationEV: exposureCompensationEV,
+                                      mode: .program(targetAperture: targetAperture))
         guard ndStops.isFinite, ndStops >= 0 else { throw ExposureError.invalidNDStops }
 
         let isoAdjustmentEV = log2(Double(cameraISO) / 100.0)
@@ -78,7 +62,7 @@ public enum ProgramExposure {
 
         // Compare in EV space so an exact calculated boundary is not rejected by
         // conversion to seconds. This tolerance only absorbs floating-point noise.
-        let boundaryToleranceEV = 1e-12
+        let boundaryToleranceEV = ExposureTolerance.boundaryEV
         let minimumSettingsEV = apertureEV - log2(Pentax17Profile.physicalSlowestShutterSeconds)
         let range: TargetRange
         if filteredSettingsEV > maximumSettingsEV + boundaryToleranceEV {
