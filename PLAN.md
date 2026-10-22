@@ -1,7 +1,7 @@
 # P17 Light Meter — Native iOS Implementation Plan
 
 Created: October 20, 2026  
-Status: M0 foundation and M1 exposure core implemented. M2 interface integration is implemented and simulator-tested; M3–M5 remain planned.
+Status: M0–M2 implemented and simulator-tested. M3 camera metering is implemented; its physical-device exit criterion remains pending. M4–M5 remain planned.
 App name: **P17 Light Meter**. Use `P17LightMeter` for project and target identifiers.
 
 ## 1. Product goal
@@ -394,3 +394,37 @@ The composition guide is a 17:24 illustration over a dark simulated viewfinder, 
 Manual EV entry accepts −20…30 EV100 as an explicit planning range, not a claim about the phone or PENTAX meter range. A request generation prevents old asynchronous samples overwriting manual input or restoring invalidated readings. SwiftUI owns and cancels sampling tasks. Unit tests use explicit completion handshakes rather than sleeps for these races.
 
 M2 verification (October 21, 2026): all ten app-state tests and both UI journeys passed on iPhone 18 Pro / iOS 27.0. The UI journeys verify Program reference exposure, Bokeh switching, manual filter selection/automatic restore, and Hold/manual EV/Resume. iPhone 17e normal and largest accessibility-size layouts were visually inspected; status/actions stack vertically and the mode control uses a menu at accessibility sizes. The simulator text-size setting was restored after inspection. Full VoiceOver traversal and physical-device validation remain later gates.
+
+
+### M3 implementation record — October 22, 2026
+
+Added the fixed physical rear wide-angle camera service, permission/recovery states,
+portrait aspect-fill preview, preview-layer tap conversion, accessible center reset,
+continuous neutral-bias AE, frame-driven exposure sampling, and serial capture lifecycle.
+Default launch uses the camera; `--demo-meter` or `--reference-scenario` explicitly
+select simulation. An unavailable camera never silently becomes simulated live data.
+
+The initial temporal policy requires four non-adjusting samples spanning at least
+0.75 s with at most 0.2 EV spread, then publishes their median at at most 4 Hz. Invalid
+samples or scene jumps clear the window. An absolute phone AE target offset over
+0.5 EV blocks publication; this is an initial conservative exposure-limit gate,
+not an accuracy measurement. A 3 s settling timeout explains instability while
+continuing to sample; a 1 s fresh-frame watchdog publishes Stale. All thresholds
+require hardware evaluation. This window reduces transient recommendation changes;
+additional ND-boundary hysteresis is deferred until real-device traces justify a
+policy that never recommends less than the required attenuation.
+
+Hold/manual/background transitions cancel the capture subscription. Generations
+reject superseded events; held readings retain timestamp and camera provenance.
+Interruption end restarts settling; runtime errors expose Retry. Live labels say
+Stable · Uncalibrated, with no numeric accuracy claim. Calibration remains M4.
+
+See the [metering guide](P17LightMeter/Metering/README.md) for ownership and tests,
+and the [physical-device checklist](doc/validation/M3-device-checks.md) for the
+remaining exit checks. M3 is not hardware-validated yet. Reference-meter accuracy,
+real permission prompts, tap mapping, exposure saturation, lifecycle recovery, and
+full VoiceOver traversal cannot be established by the simulator tests.
+
+Verification: 26 package tests, 20 app tests, and 3 simulator UI journeys passed on
+October 22, 2026. Simulator and unsigned iPhone builds succeeded. No physical
+camera or reference-meter validation has been performed in this milestone run.

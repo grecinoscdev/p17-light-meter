@@ -5,6 +5,7 @@ struct MeterView: View {
     @State var viewModel: MeterViewModel
     @State private var showsSettings = false
     @State private var showsManual = false
+    @Environment(\.openURL) private var openURL
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.dynamicTypeSize) private var textSize
 
@@ -36,8 +37,25 @@ struct MeterView: View {
                 }
                 readingStatus
                 if !textSize.isAccessibilitySize {
-                    DemoViewfinder(showsGrid: viewModel.showsGrid)
-                        .frame(height: 240)
+                    ZStack {
+                        if let camera = viewModel.camera {
+                            CameraPreview(camera: camera, centerResetID: viewModel.centerResetID,
+                                allowsMetering: viewModel.canChooseMeteringPoint,
+                                onMeteringPointChanged: { viewModel.pointWillChange() })
+                        }
+                        DemoViewfinder(showsGrid: viewModel.showsGrid, hasCamera: viewModel.camera != nil)
+                            .allowsHitTesting(false)
+                    }.frame(height: 240).clipShape(RoundedRectangle(cornerRadius: 20))
+                }
+                if viewModel.camera != nil {
+                    if viewModel.supportsPointMetering {
+                        Button("Center metering") { viewModel.meterAtCenter() }
+                            .buttonStyle(MeterPillStyle())
+                            .disabled(!viewModel.canChooseMeteringPoint)
+                        Text("Tap the preview to bias exposure toward an area. This is not a calibrated spot meter.").font(.caption)
+                    } else {
+                        Text("Camera-wide metering · point selection unavailable").font(.caption)
+                    }
                 }
                 if let calculation = viewModel.calculation {
                     switch calculation {
@@ -74,13 +92,24 @@ struct MeterView: View {
 
     @ViewBuilder private var readingStatus: some View {
         switch viewModel.state {
-        case .idle, .settling:
-            ProgressView("Settling simulated reading…").accessibilityIdentifier("readingStatus")
+        case .idle, .starting, .settling:
+            ProgressView(viewModel.camera == nil ? "Settling simulated reading…" : "Settling camera exposure…").accessibilityIdentifier("readingStatus")
+        case .requestingPermission:
+            Text("Allow camera access to measure light. You can also enter a manual EV.")
+        case .denied:
+            Text("Camera access is off or restricted. Allow access in Settings, or enter a manual EV.")
+            Button("Open Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+            }.buttonStyle(MeterPillStyle())
+            Button("Retry metering") { viewModel.resume() }.buttonStyle(MeterPillStyle())
+        case .interrupted:
+            Text("Camera interrupted · waiting to reconnect. Manual EV is still available.")
         case .stale:
-            Text("Stale · waiting to resume simulation")
+            Text("Stale · no fresh camera reading")
+            Button("Retry metering") { viewModel.resume() }.buttonStyle(MeterPillStyle())
         case let .failed(message):
-            Text(message)
-            Button("Retry simulation") { viewModel.resume() }.frame(minHeight: MeterTheme.minimumTouchHeight)
+            Text(message).accessibilityIdentifier("meterUnavailable")
+            Button("Retry metering") { viewModel.resume() }.frame(minHeight: MeterTheme.minimumTouchHeight)
         case let .ready(reading, kind):
             let statusLayout = textSize.isAccessibilitySize
                 ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
@@ -92,8 +121,8 @@ struct MeterView: View {
                     Text(reading.timestamp, format: .dateTime.hour().minute().second()).font(.caption)
                 }
                 if !textSize.isAccessibilitySize { Spacer() }
-                Button(kind == .simulated ? "Hold" : "Resume simulation") {
-                    if kind == .simulated { viewModel.hold() } else { viewModel.resume() }
+                Button(kind == .simulated || kind == .live ? "Hold" : (viewModel.camera == nil ? "Resume simulation" : "Resume metering")) {
+                    if kind == .simulated || kind == .live { viewModel.hold() } else { viewModel.resume() }
                 }.buttonStyle(MeterPillStyle()).accessibilityIdentifier("holdResume")
             }
         }
@@ -101,7 +130,8 @@ struct MeterView: View {
     private func statusTitle(_ kind: MeterViewModel.ReadingKind) -> String {
         switch kind {
         case .simulated: "Simulated · camera inactive"
-        case .held: "Held · simulated reading"
+        case .live: "Live · Stable · Uncalibrated"
+        case .held: viewModel.reading?.source == .camera ? "Held · Uncalibrated camera reading" : "Held · simulated reading"
         case .manual: "Manual · camera inactive"
         }
     }
@@ -116,13 +146,15 @@ struct MeterPillStyle: ButtonStyle {
     }
 }
 
-/// Composition illustration only. No tap coordinates or simulated spot metering:
-/// the real preview boundary will own coordinate conversion in M3.
+/// Approximate half-frame overlay; field of view has not been calibrated.
 struct DemoViewfinder: View {
     let showsGrid: Bool
+    var hasCamera = false
     var body: some View {
         ZStack {
-            LinearGradient(colors: [MeterTheme.panel, .black], startPoint: .topLeading, endPoint: .bottomTrailing)
+            if !hasCamera {
+                LinearGradient(colors: [MeterTheme.panel, .black], startPoint: .topLeading, endPoint: .bottomTrailing)
+            }
             GeometryReader { geometry in
                 let height = geometry.size.height - 36
                 let width = height * 17 / 24
@@ -138,10 +170,10 @@ struct DemoViewfinder: View {
                             }
                         }.stroke(.white.opacity(0.2))
                     }
-                    Image(systemName: "scope").font(.title).foregroundStyle(MeterTheme.accent)
+                    if !hasCamera { Image(systemName: "scope").font(.title).foregroundStyle(MeterTheme.accent) }
                 }.frame(width: width, height: height).position(x: geometry.size.width / 2, y: geometry.size.height / 2)
             }.accessibilityHidden(true)
-            VStack { Spacer(); Text("17 × 24 · Approximate guide · No camera preview").font(.caption2).padding(6).background(MeterTheme.background) }
+            VStack { Spacer(); Text(hasCamera ? "17 × 24 · Approximate guide" : "17 × 24 · Approximate guide · No camera preview").font(.caption2).padding(6).background(MeterTheme.background) }
         }.clipShape(RoundedRectangle(cornerRadius: 20))
     }
 }

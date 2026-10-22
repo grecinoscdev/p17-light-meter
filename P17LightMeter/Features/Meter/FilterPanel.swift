@@ -59,7 +59,7 @@ struct FilterPanel: View {
                     Text("Rounded minimum: \(ExposureFormatting.number(result.upwardThirdStopMinimum, digits: 2)) stops. Filter selection uses the full-precision requirement.")
                     Text("Selection is a comparison, not detection of the filter mounted on your PENTAX. The phone measures the unfiltered scene.")
                     Text("Dense or colored filters may affect PENTAX metering. Stacking may vignette the metering area. Test your filters.")
-                    Text("Simulated and manual readings do not establish camera accuracy. Settings are not saved yet.")
+                    Text("Live readings are uncalibrated; stability does not establish accuracy. Simulated and manual readings do not calibrate the camera. Settings are not saved yet.")
                 }.font(.footnote).padding(.top, 8)
             }
         }.padding(18).background(MeterTheme.panel, in: RoundedRectangle(cornerRadius: MeterTheme.panelRadius))

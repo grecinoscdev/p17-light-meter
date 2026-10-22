@@ -5,6 +5,7 @@ final class ReferenceScenarioTests: XCTestCase {
     func testReferenceScenarioAndModeChange() {
         let app = XCUIApplication()
         app.launchArguments = ["--reference-scenario"]
+        app.launchArguments.append("--demo-meter")
         app.launch()
         XCTAssertTrue(app.staticTexts["reading"].waitForExistence(timeout: 20))
         app.swipeUp()
@@ -20,9 +21,28 @@ final class ReferenceScenarioTests: XCTestCase {
         app.swipeUp()
         XCTAssertTrue(app.staticTexts["recommendation"].label.contains("ND32"))
     }
+    #if targetEnvironment(simulator)
+    @MainActor
+    func testMissingSimulatorCameraOffersManualEntryWithoutFakeLiveResult() {
+        let app = XCUIApplication()
+        app.launch()
+        XCTAssertTrue(app.staticTexts["meterUnavailable"].waitForExistence(timeout: 20))
+        XCTAssertTrue(app.staticTexts["meterUnavailable"].label.contains("No rear camera"))
+        XCTAssertFalse(app.staticTexts["reading"].exists)
+        XCTAssertFalse(app.staticTexts["recommendation"].exists)
+        app.buttons["manualEV"].tap()
+        XCTAssertTrue(app.textFields["manualEVField"].waitForExistence(timeout: 5))
+        app.buttons["applyManualEV"].tap()
+        XCTAssertTrue(app.staticTexts["readingStatus"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["readingStatus"].label.contains("Manual"))
+    }
+
+    #endif
+
     @MainActor
     func testHoldAndManualEntry() {
-        let app = XCUIApplication(); app.launch()
+        let app = XCUIApplication(); app.launchArguments.append("--demo-meter")
+        app.launch()
         XCTAssertTrue(app.buttons["holdResume"].waitForExistence(timeout: 20))
         app.buttons["holdResume"].tap()
         XCTAssertTrue(app.staticTexts["readingStatus"].label.contains("Held"))

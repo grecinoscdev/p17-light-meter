@@ -2,7 +2,7 @@
 
 A native iPhone light meter in development for PENTAX 17 photographers. It will measure scene light and help answer: **“Which ND filter should I use for this shot?”**
 
-**Current status: M2 interactive interface implemented and simulator-tested.** Switch Bokeh/Program, edit PENTAX ISO and EC, choose a Program target, compare filters, and return to the recommendation. Hold preserves the reading and timestamp; manual EV entry is explicitly labeled. The app starts with a simulated EV100 15 scene, Bokeh / ISO 100 / EC 0. No camera capture or calibration is active yet; preferences reset on launch.
+**Current status: M3 camera metering implemented; physical-device validation pending.** The default launch uses the fixed rear wide-angle camera with permission handling, preview/tap metering, settling, live EV100, Hold/manual input, and interruption recovery. Live readings are explicitly **uncalibrated**. Simulator users can enter manual EV or opt into the EV15 demo; preferences still reset on launch.
 
 ## Start here
 
@@ -51,7 +51,7 @@ Current stack:
 - Xcode project with shared `P17LightMeter` scheme and app/unit/UI test targets.
 - Xcode 27.1 / Swift 6.4 on this development machine; older toolchains have not been verified. The project uses Xcode's synchronized source folders.
 
-Open `P17LightMeter.xcodeproj`, select the `P17LightMeter` scheme, and run on an iPhone simulator. The default launch uses Bokeh / ISO 100 / EC 0 with simulated EV100 15. To reproduce the original screenshot scenario, add `--reference-scenario` in Scheme → Run → Arguments; it selects Program / ISO 400 / f/8, and the recommendation is ND8 at 1/256 s.
+Open `P17LightMeter.xcodeproj` and select the `P17LightMeter` scheme. On a physical iPhone, run with no launch arguments and allow camera access. Defaults remain Bokeh / ISO 100 / EC 0. The simulator has no rear camera: the default launch explains that limitation and offers manual EV. For the interactive EV15 demo, add `--demo-meter` in Scheme → Run → Arguments. `--reference-scenario` also opts into simulation and selects Program / ISO 400 / f/8, with ND8 at 1/256 s. Remove both arguments to test real metering.
 
 From the repository root:
 
@@ -61,9 +61,13 @@ swift test --package-path Packages/ExposureCore
 xcodebuild -project P17LightMeter.xcodeproj -scheme P17LightMeter \
   -destination 'platform=iOS Simulator,id=D765A957-4815-45CB-9A10-E87E4337B608' \
   -derivedDataPath build test CODE_SIGNING_ALLOWED=NO
+
+xcodebuild -project P17LightMeter.xcodeproj -scheme P17LightMeter \
+  -destination 'generic/platform=iOS' -derivedDataPath build/device \
+  build CODE_SIGNING_ALLOWED=NO
 ```
 
-Verified October 21, 2026: **10 app-state tests and 2 UI journeys passed**, including the simulator build. These cover the reference exposure, mode/settings recalculation, manual filter comparison and automatic restore, Hold/manual/Resume, input validation, stale state, and superseded sample races. The 26 core tests last passed during M1; the core was not modified in M2. Normal and maximum accessibility text-size screenshots were inspected on iPhone 17e / iOS 27.0, with an accessibility layout issue corrected. Local documentation links and `git diff --check` passed. Full VoiceOver traversal and physical-device checks remain part of later validation. Xcode emitted simulator SDK-version and unused App Intents metadata diagnostics, but the final test run completed successfully.
+Verified October 22, 2026: **26 ExposureCore tests, 20 app tests, and 3 UI journeys passed.** Simulator and unsigned iPhone builds succeeded. Tests cover temporal stability/timeout/recovery, synthetic permission/interruption/failure events, stale timestamps, cancellation, held/manual provenance, existing exposure interactions, and the simulator's no-camera/manual fallback. Physical camera permissions, live capture, tap mapping, interruptions, VoiceOver traversal, and reference-meter accuracy still need a real iPhone; use the [M3 device checklist](doc/validation/M3-device-checks.md). No physical deployment or accuracy result is implied by the unsigned build. Xcode emitted SDK-version and unused App Intents metadata diagnostics; they did not fail the checks.
 
 The destination above is this machine's iPhone 18 Pro / iOS 27.0 simulator. On another Mac, use `xcrun simctl list devices available` and replace the ID with an installed iPhone simulator. The test command builds the app and runs app-state and UI tests; the separate Swift command runs domain tests. Build output is ignored under `build/`.
 
@@ -78,16 +82,16 @@ Implemented layout:
 | Location | Role |
 | --- | --- |
 | `P17LightMeter.xcodeproj/` | App/test targets and shared scheme |
-| `P17LightMeter/App/` | App entry and explicit fake-meter dependency wiring |
+| `P17LightMeter/App/` | App entry and explicit real/demo dependency wiring |
 | `P17LightMeter/Features/Meter/` | Interactive screen, settings/manual sheets, filter panel, state ownership, and formatting |
-| `P17LightMeter/Metering/` | One-shot meter protocol and deterministic fake; streaming lifecycle arrives in M3 |
+| `P17LightMeter/Metering/` | Streaming boundary, serial capture service, stability policy, and native preview |
 | `P17LightMeter/DesignSystem/` | Shared colors |
 | `Packages/ExposureCore/` | EV conversion, validated settings, versioned stock profile, Bokeh/Program assessment, ND policy, and tests |
-| `P17LightMeterTests/` | Fake reading, invalid data, cancellation, and display checks |
-| `P17LightMeterUITests/` | Reference scenario and simulated/Program qualification checks |
+| `P17LightMeterTests/` | Synthetic streams, stability, lifecycle, invalid data, cancellation, and display checks |
+| `P17LightMeterUITests/` | Reference/demo journeys and no-camera manual fallback |
 | `doc/` | Research and visual reference |
 
-Persistence, owned-filter editing, calibration, and real capture remain future work. The stock profile is compiled immutable data with version/provenance metadata; external profile import and empirical Program maps remain deferred. See [ExposureCore guide](Packages/ExposureCore/README.md) for API use and result semantics.
+Persistence, owned-filter editing, and calibration remain future work. Real capture is implemented but has not yet been validated on physical hardware. See the [metering implementation guide](P17LightMeter/Metering/README.md) for queue ownership, sampling thresholds, and test entry points. The stock profile is compiled immutable data with version/provenance metadata; external profile import and empirical Program maps remain deferred. See [ExposureCore guide](Packages/ExposureCore/README.md) for API use and result semantics.
 
 The intended data flow is:
 
@@ -104,7 +108,7 @@ Camera access, calculations, storage, and UI each have a distinct responsibility
 - [x] **M0 — Foundation:** app, package, fake meter, and simulator build/tests verified. Physical signing remains unverified.
 - [x] **M1 — Exposure core:** implemented formulas, stock profile, Bokeh/Program assessment, ND inventory policy, and golden/boundary tests.
 - [x] **M2 — Reference UI:** controls, filter comparison, Hold/Resume, manual EV, and adaptive composition guide implemented and simulator-tested.
-- [ ] **M3 — Real metering:** add camera permission, preview, sampling, and lifecycle handling.
+- [ ] **M3 — Real metering:** implementation added; physical-iPhone exit checks remain pending.
 - [ ] **M4 — Calibration and persistence:** save settings and validate corrected readings.
 - [ ] **M5 — Field validation and beta:** test devices, accessibility, practical camera use, and release readiness.
 
@@ -130,14 +134,16 @@ Use descriptive names with units, straightforward control flow, focused types, a
 
 Update this README when setup, implemented features, or verification commands change. Update the plan when scope or evidence changes. When handing off work, state what changed, what was actually checked, and what still needs verification.
 
-## Trying the M2 interface
+## Trying the interface and real metering
 
 - Switch between Bokeh and Program. Bokeh fixes the target at f/3.5; Program retains your chosen aperture preference.
 - Open Camera settings (sliders icon or ISO/target pill) to change ISO, EC, Program target, or the thirds grid.
 - Tap a filter card to compare it. The selected filter and recommended filter remain separately labeled. Use recommendation restores automatic selection. The app cannot detect the mounted PENTAX filter.
-- Hold freezes the accepted simulated reading and timestamp while settings continue recalculating. Resume simulation accepts a fresh EV15 sample.
+- Hold freezes the accepted camera or simulated reading and timestamp while settings continue recalculating. Resume metering restarts capture and settling; Resume simulation accepts a fresh EV15 sample.
 - Tap the EV pill for manual input, including negative EV. The supported planning-entry range is −20…30 EV100; invalid input leaves the previous reading intact. Manual readings remain visibly Manual.
-- Backgrounding invalidates an unheld simulated reading. Held/manual values remain labeled; returning to the foreground restarts simulated sampling when needed.
+- Backgrounding stops capture and invalidates unheld readings. Held/manual values remain labeled; returning to the foreground restarts sampling when needed.
+- On a real iPhone, tap the preview to bias autoexposure toward that area, or use Center metering. This is not a calibrated spot meter. The camera preview remains an approximate composition guide.
+- Permission denial offers Settings and manual entry. Unsettled/stale/interrupted readings hide recommendations. Stable light recovers automatically; a runtime camera failure offers Retry.
 - Results and controls scroll on compact displays. The approximate guide collapses at accessibility text sizes. No animation is required for any interaction.
 
 The simulator may take time to start on this development machine. Run the **P17LightMeter** scheme with ⌘R, or open **P17 Light Meter** in Simulator; the UI-test runner is a separate app.

@@ -29,7 +29,7 @@ struct MeterSettingsView: View {
                     } else { Text("Bokeh target is fixed at f/3.5.") }
                 }
                 Section("Composition") { Toggle("Show thirds grid", isOn: $model.showsGrid) }
-                Section { Text("Camera capture, calibration, owned filters, and saved preferences arrive in later milestones. This screen uses simulated or manual readings.") }
+                Section { Text("Live camera readings are uncalibrated. Stability describes repeatability, not accuracy. Calibration, owned filters, and saved preferences arrive in later milestones.") }
             }.navigationTitle("Camera settings")
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
         }.preferredColorScheme(.dark)

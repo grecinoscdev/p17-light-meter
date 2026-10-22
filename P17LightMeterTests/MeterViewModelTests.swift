@@ -112,12 +112,12 @@ final class MeterViewModelTests: XCTestCase {
         XCTAssertFalse(ExposureFormatting.shutter(1e-30).isEmpty)
     }
 }
-private struct CancelledMeter: LightMeter {
+private struct CancelledMeter: SingleReadingLightMeter {
     func reading() async throws -> ExposureReading { throw CancellationError() }
 }
 
 /// Explicit test handshake exercises superseded asynchronous completions without sleeps.
-private actor ControlledMeter: LightMeter {
+private actor ControlledMeter: SingleReadingLightMeter {
     private var pending: CheckedContinuation<ExposureReading, Never>?
     private var started: CheckedContinuation<Void, Never>?
     func reading() async throws -> ExposureReading {
