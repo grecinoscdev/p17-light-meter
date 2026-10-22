@@ -28,10 +28,32 @@ final class ReferenceScenarioTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["At target f/8"].exists)
         XCTAssertTrue(app.staticTexts["Program may choose another aperture."].exists)
     }
+    @MainActor
+    func testOwnedFiltersAndCalibrationRequireRealCamera() {
+        let app = XCUIApplication(); app.launchArguments = ["--demo-meter"]
+        app.launch()
+        XCTAssertTrue(app.staticTexts["reading"].waitForExistence(timeout: 20))
+        app.buttons["Camera settings"].tap()
+        app.buttons["My filters"].tap()
+        XCTAssertTrue(app.switches["Use my filters"].waitForExistence(timeout: 5))
+        app.switches["Use my filters"].tap()
+        app.swipeUp()
+        let stops = app.textFields["customNDStops"]
+        XCTAssertTrue(stops.waitForExistence(timeout: 5))
+        stops.tap(); stops.typeText("2.5")
+        app.buttons["Add custom filter"].tap()
+        XCTAssertTrue(app.staticTexts["2.5 stops"].exists)
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        app.buttons["Calibration"].tap()
+        XCTAssertTrue(app.buttons["Capture stable reading"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["Capture stable reading"].isEnabled)
+    }
+
     #if targetEnvironment(simulator)
     @MainActor
     func testMissingSimulatorCameraOffersManualEntryWithoutFakeLiveResult() {
         let app = XCUIApplication()
+        app.launchArguments = ["--isolated-settings"]
         app.launch()
         XCTAssertTrue(app.staticTexts["meterUnavailable"].waitForExistence(timeout: 20))
         XCTAssertTrue(app.staticTexts["meterUnavailable"].label.contains("No rear camera"))

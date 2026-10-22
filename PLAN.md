@@ -1,7 +1,7 @@
 # P17 Light Meter — Native iOS Implementation Plan
 
 Created: October 20, 2026  
-Status: M0–M2 implemented and simulator-tested. M3 camera metering is implemented; its physical-device exit criterion remains pending. M4–M5 remain planned.
+Status: M0–M2 implemented and simulator-tested. M3 camera metering is implemented; its physical-device exit criterion remains pending. M4 calibration and persistence are implemented, with reference-meter exit checks pending. M5 remains planned.
 App name: **P17 Light Meter**. Use `P17LightMeter` for project and target identifiers.
 
 ## 1. Product goal
@@ -277,7 +277,7 @@ Key types:
 
 Use a main-actor observable view model for presentation, a dedicated serial capture service, and immutable values across that boundary. Choose either an actor with appropriate serialization or a dedicated queue; do not pass mutable AVFoundation objects freely between tasks. Cancel observation/stream tasks with the view lifecycle.
 
-Persist simple preferences in UserDefaults and structured records as Codable JSON in Application Support. Version records and handle migration/corruption with a recoverable reset. Bundle the stock profile with the app; v1 does not need remote profile downloads or third-party runtime dependencies.
+Persist preferences, filter inventory, and calibration together as one Codable JSON document in Application Support. M4 uses atomic replacement so a selected filter cannot be restored separately from its inventory; the small dataset does not need separate UserDefaults and structured stores. Version records and handle migration/corruption with a recoverable reset. Bundle the stock profile with the app; v1 does not need remote profile downloads or third-party runtime dependencies.
 
 ## 9. Delivery milestones
 
@@ -479,7 +479,20 @@ Unknown or insufficient FOV falls back to the original approximate preview.
 
 Verification completed October 22, 2026: simulator tests passed (26 app tests,
 including five geometry regressions, and 3 UI journeys). The unsigned iPhone build
-also succeeded. No code fixes were needed during verification. The corrected
-framing still needs a new same-position comparison with the physical camera; the
-user's successful phone run predates this correction. ExposureCore was unchanged
+also succeeded. No code fixes were needed during verification. The user subsequently tested the corrected framing on the iPhone 16 Pro Max and reported it is almost the same as the PENTAX 17. Multi-distance and film-plane validation remain pending. ExposureCore was unchanged
 and its separate suite was not rerun in this verification pass.
+
+
+### M4 — Calibration and persistence
+
+Implemented local settings restoration, selected-filter restoration, owned catalog/custom filters, optional film-box ISO, and reference correction capture/preview/save/reset. Generic and owned inventory are explicit choices; no filter is always available, but an empty owned inventory never falls back to generic filters. Custom attenuation accepts finite values above zero through 20 stops, with at most 100 owned entries. These are input bounds, not camera limits.
+
+The view model retains raw readings and derives corrected EV100 exactly once. Capture requires a fresh live camera sample; saving requires the same live camera context and a snapshot no older than five minutes. This timeout permits reference entry without reusing a stale comparison later. Reference entry accepts −20…30 EV100. Corrections larger than two stops prompt a setup check, not an accuracy assertion. Held camera readings retain their matching correction; manual and simulated readings never receive it.
+
+Calibration stores local device identity, physical camera identity, pipeline version, OS version, active/output format dimensions, media subtype, aperture, zoom, distortion correction, frame-duration configuration, raw/reference EV100, sample/save dates, and schema version. A context mismatch leaves the raw reading uncorrected and displays an inactive status. One comparison is not an uncertainty estimate or a claim of accuracy across illuminants.
+
+The injected storage actor performs file I/O outside the main actor. A single serialized save worker coalesces pending snapshots and prevents an older edit from overwriting newer settings. A corrupt or unsupported file blocks autosaving until explicit reset; write failures offer retry. Demo/reference and isolated-test launches do not access normal saved settings. Persisted scenes are deliberately excluded.
+
+Implementation may be tested before reference equipment is available, but M4's hardware exit remains open. Record comparisons using [the M4 checklist](doc/validation/M4-calibration-checks.md); do not infer physical accuracy from the automated tests.
+
+Verification on October 22, 2026: 36 app tests passed on the final implementation; four simulator UI journeys passed, including custom-filter entry and disabled calibration capture in simulation. The final unsigned iPhone build passed. ExposureCore was unchanged and its separate tests were not rerun. Hardware/reference-meter validation remains pending.

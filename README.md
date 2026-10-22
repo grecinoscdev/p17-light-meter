@@ -2,15 +2,9 @@
 
 A native iPhone light meter in development for PENTAX 17 photographers. It will measure scene light and help answer: **“Which ND filter should I use for this shot?”**
 
-**Current status: M3 metering has been user-tested on an iPhone 16 Pro Max; detailed device and accuracy validation remain pending.** The default launch uses the fixed rear wide-angle camera with permission handling, preview/tap metering, settling, live EV100, Hold/manual input, and interruption recovery. Live readings are explicitly **uncalibrated**. Simulator users can enter manual EV or opt into the EV15 demo; preferences still reset on launch.
+**Current status: M4 calibration and persistence are implemented; reference-meter validation remains pending.** The default launch uses the fixed rear wide-angle camera with permission handling, preview/tap metering, settling, live EV100, Hold/manual input, and interruption recovery. Settings now survive relaunches. Live readings remain **uncalibrated** until a matching reference correction is saved.
 
-
-The latest framing correction scales the preview under the existing green guide
-using the phone camera's reported field of view and the PENTAX's 25 mm lens / 17 ×
-24 mm frame. The layout is unchanged and the guide remains approximate. This
-correction passed **26 app tests (including five framing tests) and 3 UI journeys**
-on October 22, 2026. Simulator and unsigned iPhone builds succeeded. A new
-same-position comparison on the iPhone is still needed to validate actual framing.
+The user tested capture and the corrected green-guide framing on an **iPhone 16 Pro Max**, reporting that framing is almost the same as the PENTAX 17. The guide remains approximate: this comparison does not establish metering accuracy or film-plane framing across distances.
 
 ## Start here
 
@@ -21,7 +15,7 @@ same-position comparison on the iPhone is still needed to validate actual framin
 | [Deep research](doc/pentax17-deep-research-report.md) | Camera behavior, exposure physics, calibration, evidence, and open questions |
 | [UI reference](doc/Codex-UI-Reference-3x.png) | Visual direction for the viewfinder and ND filter controls |
 
-The PNG uses an earlier name. The app’s display name is **P17 Light Meter**, and its planned project/target identifier is `P17LightMeter`.
+The PNG uses an earlier name. The app’s display name is **P17 Light Meter**, and its project/target identifier is `P17LightMeter`.
 
 ## What the app will do
 
@@ -60,7 +54,7 @@ Current stack:
 - Xcode project with shared `P17LightMeter` scheme and app/unit/UI test targets.
 - Xcode 27.1 / Swift 6.4 on this development machine; older toolchains have not been verified. The project uses Xcode's synchronized source folders.
 
-Open `P17LightMeter.xcodeproj` and select the `P17LightMeter` scheme. On a physical iPhone, run with no launch arguments and allow camera access. Defaults remain Bokeh / ISO 100 / EC 0. The simulator has no rear camera: the default launch explains that limitation and offers manual EV. For the interactive EV15 demo, add `--demo-meter` in Scheme → Run → Arguments. `--reference-scenario` also opts into simulation and selects Program / ISO 400 / f/8, with ND8 at 1/256 s. Remove both arguments to test real metering.
+Open `P17LightMeter.xcodeproj` and select the `P17LightMeter` scheme. On a physical iPhone, run with no launch arguments and allow camera access. First-launch defaults remain Bokeh / ISO 100 / EC 0; subsequent launches restore saved settings. The simulator has no rear camera: the default launch explains that limitation and offers manual EV. For the interactive EV15 demo, add `--demo-meter` in Scheme → Run → Arguments. `--reference-scenario` also opts into simulation and selects Program / ISO 400 / f/8, with ND8 at 1/256 s. Remove both arguments to test real metering. Demo/reference launches use temporary settings and never overwrite normal saved data. `--isolated-settings` also disables persistence for automated no-camera tests.
 
 From the repository root:
 
@@ -76,11 +70,11 @@ xcodebuild -project P17LightMeter.xcodeproj -scheme P17LightMeter \
   build CODE_SIGNING_ALLOWED=NO
 ```
 
-Previous Slow-speed verification, October 22, 2026: **29 ExposureCore tests, 21 app tests, and 3 UI journeys passed.** The simulator build and three-mode UI journey passed for the Slow-speed update. The unsigned iPhone build last passed during M3. Tests include Slow-speed/Program parity, editable targets, and ND recommendations and mode switching that preserves held readings and Program preferences, plus temporal stability/timeout/recovery, synthetic permission/interruption/failure events, stale timestamps, cancellation, held/manual provenance, existing exposure interactions, and the simulator's no-camera/manual fallback. Physical camera permissions, live capture, tap mapping, interruptions, VoiceOver traversal, and reference-meter accuracy still need a real iPhone; use the [M3 device checklist](doc/validation/M3-device-checks.md). No physical deployment or accuracy result is implied by the unsigned build. Xcode emitted SDK-version and unused App Intents metadata diagnostics; they did not fail the checks.
+M4 verification, October 22, 2026: **36 app tests and 4 simulator UI journeys passed**, and the final unsigned iPhone build succeeded. The final app-test rerun covers the reset and camera-context safeguards; the UI run covers the existing journeys plus owned-filter entry and simulated calibration rejection. ExposureCore is unchanged; its separate suite was not rerun (29 tests passed in the preceding Slow-speed verification). Physical camera permissions, interruptions, VoiceOver traversal, and reference-meter accuracy still require an iPhone; use the [M3 device checklist](doc/validation/M3-device-checks.md) and [M4 calibration checklist](doc/validation/M4-calibration-checks.md). An unsigned build does not establish hardware accuracy.
 
 The destination above is this machine's iPhone 18 Pro / iOS 27.0 simulator. On another Mac, use `xcrun simctl list devices available` and replace the ID with an installed iPhone simulator. The test command builds the app and runs app-state and UI tests; the separate Swift command runs domain tests. Build output is ignored under `build/`.
 
-For a physical device, select your development team in Xcode Signing & Capabilities and replace the provisional `com.example.P17LightMeter` bundle identifier with one you own. Simulator builds do not require signing. The user has configured signing and reported a successful iPhone run. Automated iPhone builds here are unsigned.
+For a physical device, select your development team in Xcode Signing & Capabilities and use a bundle identifier you own (this checkout currently uses `com.grecinosc.P17LightMeter`). Simulator builds do not require signing. The user has configured signing and reported a successful iPhone run. Automated iPhone builds here are unsigned.
 
 A physical iPhone and development signing are needed for camera testing. A trusted reflected-light meter is needed for accuracy validation. Real PENTAX 17 hardware and known ND filters are needed for field validation of camera recommendations.
 
@@ -94,13 +88,14 @@ Implemented layout:
 | `P17LightMeter/App/` | App entry and explicit real/demo dependency wiring |
 | `P17LightMeter/Features/Meter/` | Interactive screen, settings/manual sheets, filter panel, state ownership, and formatting |
 | `P17LightMeter/Metering/` | Streaming boundary, serial capture service, stability policy, and native preview |
+| `P17LightMeter/Persistence/` | Versioned settings, inventory and calibration records; atomic local JSON storage |
 | `P17LightMeter/DesignSystem/` | Shared colors |
 | `Packages/ExposureCore/` | EV conversion, validated settings, versioned stock profile, Bokeh/Program assessment, ND policy, and tests |
 | `P17LightMeterTests/` | Synthetic streams, stability, lifecycle, invalid data, cancellation, and display checks |
 | `P17LightMeterUITests/` | Reference/demo journeys and no-camera manual fallback |
 | `doc/` | Research and visual reference |
 
-Persistence, owned-filter editing, and calibration remain future work. The user has reported working capture on an iPhone 16 Pro Max; detailed lifecycle, accuracy, and corrected-framing checks remain pending. See the [metering implementation guide](P17LightMeter/Metering/README.md) for queue ownership, sampling thresholds, and test entry points. The stock profile is compiled immutable data with version/provenance metadata; external profile import and empirical Program maps remain deferred. See [ExposureCore guide](Packages/ExposureCore/README.md) for API use and result semantics.
+Persistence, owned-filter editing, film-box ISO, and reference correction are implemented. Detailed lifecycle and reference-meter accuracy checks remain pending. See the [metering implementation guide](P17LightMeter/Metering/README.md) for queue ownership, sampling thresholds, and test entry points. The stock profile is compiled immutable data with version/provenance metadata; external profile import and empirical Program maps remain deferred. See [ExposureCore guide](Packages/ExposureCore/README.md) for API use and result semantics.
 
 The intended data flow is:
 
@@ -114,11 +109,11 @@ Camera access, calculations, storage, and UI each have a distinct responsibility
 
 ## Implementation roadmap
 
-- [x] **M0 — Foundation:** app, package, fake meter, and simulator build/tests verified. Physical signing remains unverified.
+- [x] **M0 — Foundation:** app, package, fake meter, and simulator build/tests verified. User configured signing and ran on an iPhone.
 - [x] **M1 — Exposure core:** implemented formulas, stock profile, Bokeh/Program assessment, ND inventory policy, and golden/boundary tests.
 - [x] **M2 — Reference UI:** controls, filter comparison, Hold/Resume, manual EV, and adaptive composition guide implemented and simulator-tested.
 - [ ] **M3 — Real metering:** implementation added; physical-iPhone exit checks remain pending.
-- [ ] **M4 — Calibration and persistence:** save settings and validate corrected readings.
+- [ ] **M4 — Calibration and persistence:** implemented; reference-meter exit checks remain pending.
 - [ ] **M5 — Field validation and beta:** test devices, accessibility, practical camera use, and release readiness.
 
 The `--reference-scenario` launch argument reproduces EV100 15 / ISO 400 / EC 0 / f/8 / ND8 and a 1/256 s readout. Full milestone exit criteria and estimates are in [PLAN.md](PLAN.md#9-delivery-milestones).
@@ -146,7 +141,11 @@ Update this README when setup, implemented features, or verification commands ch
 ## Trying the interface and real metering
 
 - Switch between Bokeh, P / Program, and Slow-speed. Bokeh targets f/3.5. P / Program and Slow-speed share the same editable aperture preference and calculation behavior for now. Both show required exposures outside 1/350…4 s as out of range. Slow-speed remains a separate selection for future features.
-- Open Camera settings (sliders icon or ISO/target pill) to change ISO, EC, Program target, or the thirds grid.
+- Open Camera settings (sliders icon or ISO/target pill) to change ISO, EC, Program target, or the thirds grid. Optional film-box ISO is advisory; calculations always use the PENTAX dial ISO.
+- In **My filters**, choose owned catalog filters or add fractional attenuation in stops. Enable **Use my filters** to restrict recommendations to that inventory plus no filter. An empty inventory never silently uses the catalog.
+- In **Calibration**, use a stable live camera reading of an evenly lit neutral target and enter a trusted reflected meter's EV100 at ISO 100. Preview and save the correction. Manual, held, and simulated readings cannot create a correction. Reset removes it.
+- Settings, selected filter, inventory, and calibration are stored in one versioned atomic JSON file in Application Support. Scene readings are never restored. A correction applies only to the same local device, physical camera, and capture/OS configuration. A mismatch leaves the raw reading visible with an inactive-correction warning.
+- Save failures show a retry message. Unreadable or unsupported saved data is preserved and autosaving pauses until you explicitly choose **Reset saved data** in Settings. That reset restores all defaults, empties owned filters, and removes calibration.
 - Tap a filter card to compare it. The selected filter and recommended filter remain separately labeled. Use recommendation restores automatic selection. The app cannot detect the mounted PENTAX filter.
 - Hold freezes the accepted camera or simulated reading and timestamp while settings continue recalculating. Resume metering restarts capture and settling; Resume simulation accepts a fresh EV15 sample.
 - Tap the EV pill for manual input, including negative EV. The supported planning-entry range is −20…30 EV100; invalid input leaves the previous reading intact. Manual readings remain visibly Manual.

@@ -30,7 +30,7 @@ Initial quality policy, pending physical-device tuning:
 - An absolute AE target offset greater than 0.5 EV is treated as an exposure-limit/unsettled condition, not as a corrected reading.
 - After three seconds without stability, explain the problem instead of showing an endless spinner. Sampling continues so it can recover automatically.
 - After one second without fresh video frames, publish Stale and clear the window. Interruption events also invalidate live results; interruption end restarts settling. Runtime errors offer explicit Retry.
-- Stable describes repeatability only. There is no numeric accuracy claim, saved calibration, or validated Program map.
+- Stable describes repeatability only. There is no numeric accuracy claim or validated Program map. M4 optionally applies a matching saved reference correction after raw metering.
 
 `CameraPreview` owns portrait rotation, field-of-view scaling, and tap conversion
 through `captureDevicePointConverted(fromLayerPoint:)`. The point biases camera AE;
@@ -53,9 +53,14 @@ This is a pinhole estimate, not calibration of the PENTAX optical viewfinder or
 close-distance parallax. `PreviewFramingTests` covers both axes, panel widths,
 output cropping, zoom, and unavailable metadata. All five geometry tests passed on October 22, 2026, as part of 26 app tests
 and 3 simulator UI journeys. Simulator and unsigned iPhone builds succeeded.
-Real-camera framing and tap alignment still require a physical-device comparison.
+The user subsequently reported near agreement with the PENTAX 17 on an iPhone 16 Pro Max. Multiple distances, film-plane framing, and precise tap alignment still need device checks.
 
 Tests: `ReadingStabilityTests` exercises the pure temporal policy with explicit
 monotonic times. `LiveMeterStateTests` exercises synthetic event streams, lifecycle,
 provenance, stale samples, and cancellation without camera hardware or sleeps.
 `MeterViewModelTests` retains the demo/manual/ExposureCore integration regressions.
+
+
+Each camera reading carries immutable `CameraContext` metadata assembled on the capture queue. The device identifier is injected by the app entry point; if unavailable, metering still works but calibration capture is disabled. Context includes physical camera, capture format/configuration, and OS identity. No camera imagery is stored in it.
+
+`MeterViewModel.state` always retains raw readings. Its `reading` property applies a matching `CalibrationRecord.offsetEV` once, leaving manual/simulated samples untouched. The model owns restore/save tasks; one save worker serializes/coalesces immutable snapshots. `FileSettingsStore` owns atomic JSON I/O on its actor. Corruption blocks autosave until explicit reset, and failures remain visible. See `CalibrationTests`, `PersistenceTests`, and `SavedSettingsModelTests` for sign, context, freshness, inventory, restore/reset, and error-recovery behavior.

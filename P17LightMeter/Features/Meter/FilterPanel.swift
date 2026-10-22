@@ -12,7 +12,7 @@ struct FilterPanel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("ND FILTERS").font(.headline).accessibilityAddTraits(.isHeader)
+            Text(model.useOwnedFilters ? "MY ND FILTERS" : "ND FILTERS").font(.headline).accessibilityAddTraits(.isHeader)
             Text("Exact minimum: \(ExposureFormatting.number(result.exactMinimumStops, digits: 3)) stops")
                 .accessibilityIdentifier("minimumND")
             if let recommended {
@@ -25,7 +25,7 @@ struct FilterPanel: View {
             ScrollViewReader { proxy in
                 ScrollView(.horizontal) {
                     HStack(spacing: 10) {
-                        ForEach(NDFilter.catalog) { filter in
+                        ForEach(model.availableFilters) { filter in
                             let selected = displayed?.filter.id == filter.id
                             Button { model.selectedFilter = filter } label: {
                                 VStack(spacing: 6) {
@@ -37,7 +37,7 @@ struct FilterPanel: View {
                                     .background(selected ? MeterTheme.accent : MeterTheme.background, in: RoundedRectangle(cornerRadius: 18))
                                     .foregroundStyle(selected ? MeterTheme.background : .white)
                             }
-                            .id(filter.id).accessibilityIdentifier("filter-\(Int(filter.stops))")
+                            .id(filter.id).accessibilityIdentifier(NDFilter.catalog.contains(filter) ? "filter-\(Int(filter.stops))" : filter.id)
                             .accessibilityLabel("\(ExposureFormatting.filter(filter)), \(ExposureFormatting.number(filter.stops)) stops\(selected ? ", selected" : "")\(recommended?.filter.id == filter.id ? ", recommended" : "")")
                         }
                     }
@@ -59,7 +59,7 @@ struct FilterPanel: View {
                     Text("Rounded minimum: \(ExposureFormatting.number(result.upwardThirdStopMinimum, digits: 2)) stops. Filter selection uses the full-precision requirement.")
                     Text("Selection is a comparison, not detection of the filter mounted on your PENTAX. The phone measures the unfiltered scene.")
                     Text("Dense or colored filters may affect PENTAX metering. Stacking may vignette the metering area. Test your filters.")
-                    Text("Live readings are uncalibrated; stability does not establish accuracy. Simulated and manual readings do not calibrate the camera. Settings are not saved yet.")
+                    Text("Stability describes repeatability, not accuracy. A saved reference correction is one comparison, not a guarantee of accuracy. Simulated and manual readings do not calibrate the camera.")
                 }.font(.footnote).padding(.top, 8)
             }
         }.padding(18).background(MeterTheme.panel, in: RoundedRectangle(cornerRadius: MeterTheme.panelRadius))

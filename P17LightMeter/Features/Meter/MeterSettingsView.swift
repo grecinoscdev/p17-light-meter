@@ -3,6 +3,7 @@ import ExposureCore
 
 struct MeterSettingsView: View {
     @Bindable var model: MeterViewModel
+    @State private var confirmsReset = false
     @Environment(\.dismiss) private var dismiss
     var body: some View {
         NavigationStack {
@@ -28,9 +29,32 @@ struct MeterSettingsView: View {
                         Text("These are target preferences, not known iris detents. f/8 is a preference, not a proven sweet spot.").font(.footnote)
                     } else { Text("Bokeh target is fixed at f/3.5.") }
                 }
+                Section("Film") {
+                    Picker("Film box ISO", selection: $model.filmBoxISO) {
+                        Text("Not specified").tag(Int?.none)
+                        ForEach(Pentax17Profile.supportedCameraISO, id: \.self) { Text("ISO \($0)").tag(Optional($0)) }
+                    }
+                    if let filmISO = model.filmBoxISO, filmISO != model.cameraISO {
+                        Text("Film box ISO differs from the PENTAX dial. Calculations use the dial ISO; confirm this is intentional.").foregroundStyle(.orange)
+                    }
+                }
+                Section {
+                    NavigationLink("My filters") { OwnedFiltersView(model: model) }
+                    NavigationLink("Calibration") { CalibrationView(model: model) }
+                }
                 Section("Composition") { Toggle("Show thirds grid", isOn: $model.showsGrid) }
-                Section { Text("Live camera readings are uncalibrated. Stability describes repeatability, not accuracy. Calibration, owned filters, and saved preferences arrive in later milestones.") }
-            }.navigationTitle("Camera settings")
+                Section("Saved data") {
+                    Text("Settings, owned filters, and reference corrections are saved on this iPhone. Readings are not saved. Demo launches use temporary settings.")
+                    if let message = model.settingsMessage {
+                        Text(message).foregroundStyle(.orange)
+                        if !model.savedDataNeedsReset { Button("Retry saving") { model.saveSettings() } }
+                    }
+                    Button("Reset saved data", role: .destructive) { confirmsReset = true }
+                }
+            }.disabled(!model.settingsReady || model.isResettingSavedData).navigationTitle("Camera settings")
+                .confirmationDialog("Reset settings, filters, and calibration?", isPresented: $confirmsReset, titleVisibility: .visible) {
+                    Button("Reset saved data", role: .destructive) { Task { await model.resetSavedData() } }
+                }
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
         }.preferredColorScheme(.dark)
     }

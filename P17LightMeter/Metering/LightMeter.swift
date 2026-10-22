@@ -6,6 +6,7 @@ struct ExposureReading: Equatable, Sendable {
     let sceneEV100: Double
     let timestamp: Date
     let source: Source
+    var cameraContext: CameraContext? = nil
 }
 
 enum MeterEvent: Equatable, Sendable {

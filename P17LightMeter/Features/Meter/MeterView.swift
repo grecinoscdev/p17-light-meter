@@ -23,13 +23,13 @@ struct MeterView: View {
                 if textSize.isAccessibilitySize {
                     Picker("Camera mode", selection: $model.cameraMode) {
                         ForEach(MeterViewModel.CameraMode.allCases) { mode in
-                            Text(mode.rawValue).tag(mode)
+                            Text(mode.title).tag(mode)
                         }
                     }.pickerStyle(.menu).frame(minHeight: MeterTheme.minimumTouchHeight)
                 } else {
                     Picker("Camera mode", selection: $model.cameraMode) {
                         ForEach(MeterViewModel.CameraMode.allCases) { mode in
-                            Text(mode.rawValue).tag(mode)
+                            Text(mode.title).tag(mode)
                         }
                     }.pickerStyle(.segmented).accessibilityIdentifier("mode")
                 }
@@ -37,6 +37,7 @@ struct MeterView: View {
                     HStack { inputControls }
                     VStack(alignment: .leading) { inputControls }
                 }
+                if let message = viewModel.settingsMessage { Text(message).font(.footnote).foregroundStyle(.orange) }
                 readingStatus
                 if !textSize.isAccessibilitySize {
                     ZStack {
@@ -69,6 +70,7 @@ struct MeterView: View {
                 }
             }.padding(20)
         }
+        .disabled(!viewModel.settingsReady || viewModel.isResettingSavedData)
         .background(MeterTheme.background.ignoresSafeArea())
         .foregroundStyle(.white).tint(MeterTheme.accent).preferredColorScheme(.dark)
         .sheet(isPresented: $showsSettings) { MeterSettingsView(model: viewModel) }
@@ -132,8 +134,8 @@ struct MeterView: View {
     private func statusTitle(_ kind: MeterViewModel.ReadingKind) -> String {
         switch kind {
         case .simulated: "Simulated · camera inactive"
-        case .live: "Live · Stable · Uncalibrated"
-        case .held: viewModel.reading?.source == .camera ? "Held · Uncalibrated camera reading" : "Held · simulated reading"
+        case .live: "Live · Stable · \(viewModel.calibrationStatus)"
+        case .held: viewModel.reading?.source == .camera ? "Held · \(viewModel.calibrationStatus)" : "Held · simulated reading"
         case .manual: "Manual · camera inactive"
         }
     }

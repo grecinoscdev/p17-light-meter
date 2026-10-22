@@ -10,8 +10,10 @@ struct P17LightMeterApp: App {
         if reference || arguments.contains("--demo-meter") {
             _model = State(initialValue: MeterViewModel(lightMeter: DemoLightMeter(), referenceScenario: reference))
         } else {
-            let camera = CameraLightMeter()
-            _model = State(initialValue: MeterViewModel(lightMeter: camera, camera: camera))
+            let camera = CameraLightMeter(deviceIdentifier: UIDevice.current.identifierForVendor?.uuidString)
+            let directory = URL.applicationSupportDirectory.appendingPathComponent("P17LightMeter", isDirectory: true)
+            let store: (any SettingsStore)? = arguments.contains("--isolated-settings") ? nil : FileSettingsStore(directory: directory)
+            _model = State(initialValue: MeterViewModel(lightMeter: camera, camera: camera, settingsStore: store))
         }
     }
 

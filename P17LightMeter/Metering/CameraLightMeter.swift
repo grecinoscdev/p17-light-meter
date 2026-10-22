@@ -12,6 +12,11 @@ import Foundation
 /// pattern; UI code never configures or starts/stops the session. Frames are discarded,
 /// never recorded, analyzed for image content, or sent outside this service.
 final class CameraLightMeter: NSObject, LightMeter, AVCaptureVideoDataOutputSampleBufferDelegate, @unchecked Sendable {
+    private let deviceIdentifier: String?
+    init(deviceIdentifier: String? = nil) {
+        self.deviceIdentifier = deviceIdentifier
+        super.init()
+    }
     private let captureQueue = DispatchQueue(label: "P17LightMeter.capture", qos: .userInitiated)
     private let session = AVCaptureSession()
     private var device: AVCaptureDevice?
@@ -182,8 +187,37 @@ final class CameraLightMeter: NSObject, LightMeter, AVCaptureVideoDataOutputSamp
         // saturation). This conservative gate is a quality rule, not an accuracy claim.
         let offset = Double(camera.exposureTargetOffset)
         let limited = !offset.isFinite || abs(offset) > Self.maximumExposureTargetOffsetEV
-        publish(stability.accept(sceneEV100: sceneEV100, adjusting: camera.isAdjustingExposure,
-            exposureLimited: limited, seconds: seconds, timestamp: Date().addingTimeInterval(-frameAgeSeconds)))
+        let event = stability.accept(sceneEV100: sceneEV100, adjusting: camera.isAdjustingExposure,
+            exposureLimited: limited, seconds: seconds, timestamp: Date().addingTimeInterval(-frameAgeSeconds))
+        if case .reading(var reading) = event {
+            reading.cameraContext = calibrationContext(camera: camera, sampleBuffer: sampleBuffer)
+            publish(.reading(reading))
+        } else { publish(event) }
+    }
+
+    /// Called only on captureQueue. Point-of-interest changes do not change the
+    /// fixed optical pipeline; a reference comparison still needs a uniform target.
+    private func calibrationContext(camera: AVCaptureDevice, sampleBuffer: CMSampleBuffer) -> CameraContext? {
+        guard let deviceIdentifier, let outputFormat = CMSampleBufferGetFormatDescription(sampleBuffer) else { return nil }
+        let format = camera.activeFormat.formatDescription
+        let dimensions = CMVideoFormatDescriptionGetDimensions(format)
+        let outputDimensions = CMVideoFormatDescriptionGetDimensions(outputFormat)
+        // Version the measurement pipeline as well as the physical camera.
+        // OS changes invalidate a comparison because Apple's AE may change.
+        let configurationParts = [
+            "neutral-wide-vga-median-v1",
+            ProcessInfo.processInfo.operatingSystemVersionString,
+            "\(dimensions.width)x\(dimensions.height)",
+            "\(CMFormatDescriptionGetMediaSubType(format))",
+            "\(camera.lensAperture)",
+            "\(camera.videoZoomFactor)",
+            "\(camera.isGeometricDistortionCorrectionEnabled)",
+            "\(outputDimensions.width)x\(outputDimensions.height)",
+            "\(camera.activeVideoMinFrameDuration.seconds)",
+            "\(camera.activeVideoMaxFrameDuration.seconds)"
+        ]
+        return CameraContext(deviceIdentifier: deviceIdentifier, cameraIdentifier: camera.uniqueID,
+            configurationIdentifier: configurationParts.joined(separator: "|"))
     }
 
     private func updatePreviewFormat(camera: AVCaptureDevice, sampleBuffer: CMSampleBuffer) {
