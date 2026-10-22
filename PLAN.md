@@ -61,7 +61,7 @@ Proposed defaults, intended to let development proceed without a lengthy setup p
 - Empirically measured Standard Program profiles and actual Program-aperture prediction.
 - Filter-specific meter calibration, more advanced device calibration curves, and profile import/export.
 - Landscape layouts, exposure history, film-roll notes, widgets, and localization beyond the initial language.
-- Slow-speed, flash, and Bulb planning, including film-specific reciprocity handling if added.
+- Dedicated Slow-speed features, flash, and Bulb planning, including film-specific reciprocity handling if added.
 
 Photo capture, film emulation, automatic ISO optimization, and remote control of the PENTAX are outside v1. Bokeh mode does not mean simulated phone-camera background blur.
 
@@ -126,6 +126,18 @@ Validate all inputs: positive ISO, aperture and duration; finite EV; permitted E
 - Where a slow shutter falls within the physical envelope but the Bokeh policy is unknown, show “Required shutter; mode limit unverified.” A configurable handheld advisory can default to 1/60 s, explicitly separate from camera specifications.
 - Display intermediate apertures as approximate equivalents, not physical iris detents.
 
+### Slow-speed mode
+
+Slow-speed currently uses the same editable target-aperture feasibility calculation
+and ND policy as P / Program. Both share the user's Program target preference
+(default f/8). Keep a distinct mode identity for later Slow-speed features, but do
+not impose a fixed f/16 aperture or invent a separate program curve or slow limit.
+The output carries the same qualification: Program may choose another aperture.
+
+Acceptance case: EV15 / ISO400 / EC0 / target f/8 recommends ND8 and requires
+1/256 s in both modes. Changing the target in either mode updates their shared
+preference. Held/manual readings and selected filters survive mode changes.
+
 ### Program mode
 
 For v1, calculate the shutter **at the requested target aperture**. Example: “At target f/8: ≈1/256 s. Program may choose another aperture.”
@@ -171,7 +183,7 @@ Rebuild the reference as native controls and a real camera preview. The PNG is a
 | --- | --- |
 | P17 Light Meter header | White wordmark with a lime “17” accent and compact subtitle; adapt the reference layout to fit the app name |
 | P / Program pill | Native selector for Program and Bokeh |
-| ISO / EV / target pills | ISO opens camera settings; EV opens reading details/manual entry; target is editable in Program and fixed at f/3.5 in Bokeh |
+| ISO / EV / target pills | ISO opens camera settings; EV opens reading details/manual entry; target is editable and shared in Program/Slow-speed, and fixed at f/3.5 in Bokeh |
 | Full-screen scene | Live preview, restrained dark overlays behind controls, no grain over metered imagery |
 | Lime corner brackets | 17:24 portrait frame, optional thirds grid, dimmed surrounding area |
 | Central reticle | Tap location and settling feedback; accessible center-reset action |
@@ -428,3 +440,17 @@ full VoiceOver traversal cannot be established by the simulator tests.
 Verification: 26 package tests, 20 app tests, and 3 simulator UI journeys passed on
 October 22, 2026. Simulator and unsigned iPhone builds succeeded. No physical
 camera or reference-meter validation has been performed in this milestone run.
+
+
+### Third mode — Slow-speed
+
+Slow-speed remains a distinct selection but currently matches P / Program behavior:
+shared editable aperture target, target-feasibility output, ND selection, and shutter
+limit warnings. The initial fixed-f/16 assumption was withdrawn and removed.
+Dedicated Slow-speed features are deferred. Tests cover calculation parity across
+apertures, light levels and filters, target validation, and preserved held state.
+
+Verification after the correction: 29 core tests, 21 app tests, and 3 simulator UI
+journeys passed. The UI journey confirms Slow-speed and Program both show target
+f/8 with ND8 at 1/256 s for the reference scene. Physical-device validation remains
+pending.

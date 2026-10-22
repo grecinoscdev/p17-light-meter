@@ -1,6 +1,6 @@
 import Foundation
 
-/// Program ranges apply only to the requested target; Bokeh ranges apply to the
+/// Program and Slow-speed ranges apply to their target; Bokeh ranges apply to the
 /// modeled aperture. A target may fail even though Bokeh can stop down.
 public enum ModeledRange: Equatable, Sendable {
     case withinPhysicalEnvelopeModeLimitUnverified
@@ -13,11 +13,12 @@ public enum ModeledRange: Equatable, Sendable {
 public struct ExposureAssessment: Equatable, Sendable {
     public let mode: ExposureMode
     public let target: ProgramAssessment
-    /// Program: requested target. Bokeh: continuous estimate, not an iris detent.
+    /// Program and Slow-speed: requested target.
+    /// Bokeh: continuous estimate, not an iris detent.
     public let modeledAperture: Double?
     public let modeledShutterSeconds: Double?
     public let modeledRange: ModeledRange
-    /// Advisory uses the target shutter in Program and the modeled shutter in Bokeh.
+    /// Advisory uses the target shutter in Program/Slow-speed and modeled shutter in Bokeh.
     /// It is a user preference, not a camera specification or suitability veto.
     public let needsSteadySupport: Bool
 }

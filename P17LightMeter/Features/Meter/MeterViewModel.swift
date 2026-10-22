@@ -14,9 +14,16 @@ final class MeterViewModel {
     }
     private(set) var state: State = .idle
     private(set) var requestID = 0
-    var isProgram = false
+    enum CameraMode: String, CaseIterable, Identifiable {
+        case program = "P / Program"
+        case bokeh = "Bokeh"
+        case slowSpeed = "Slow-speed"
+        var id: Self { self }
+    }
+    var cameraMode: CameraMode = .bokeh
     var cameraISO = 100
     var compensationThirds = 0
+    // Shared target preference: Slow-speed currently has the same behavior as Program.
     var programAperture = 8.0
     var selectedFilter: NDFilter?
     var showsGrid = true
@@ -31,7 +38,7 @@ final class MeterViewModel {
         self.camera = camera
         self.lightMeter = lightMeter
         self.now = now
-        if referenceScenario { isProgram = true; cameraISO = 400 }
+        if referenceScenario { cameraMode = .program; cameraISO = 400 }
     }
 
     var canChooseMeteringPoint: Bool {
@@ -39,7 +46,14 @@ final class MeterViewModel {
         return kind == .live || state == .settling
     }
 
-    var targetAperture: Double { isProgram ? programAperture : 3.5 }
+    var exposureMode: ExposureMode {
+        switch cameraMode {
+        case .bokeh: .bokeh
+        case .program: .program(targetAperture: programAperture)
+        case .slowSpeed: .slowSpeed(targetAperture: programAperture)
+        }
+    }
+    var targetAperture: Double { exposureMode.targetAperture }
     var reading: ExposureReading? {
         guard case let .ready(reading, _) = state else { return nil }
         return reading
@@ -53,7 +67,7 @@ final class MeterViewModel {
         return Result {
             let configuration = try ExposureConfiguration(
                 cameraISO: cameraISO, exposureCompensationEV: Double(compensationThirds) / 3,
-                mode: isProgram ? .program(targetAperture: programAperture) : .bokeh)
+                mode: exposureMode)
             return try NDRecommendationEngine.recommend(sceneEV100: reading.sceneEV100,
                 configuration: configuration, inventory: NDFilter.catalog, selectedFilter: selectedFilter)
         }

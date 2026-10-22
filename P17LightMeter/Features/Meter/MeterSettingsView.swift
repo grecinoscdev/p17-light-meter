@@ -19,7 +19,7 @@ struct MeterSettingsView: View {
                     Text("PENTAX ISO is your dial setting, not the phone sensor ISO. Positive EC requests more exposure and reduces required ND.").font(.footnote)
                 }
                 Section("Aperture objective") {
-                    if model.isProgram {
+                    if model.cameraMode != .bokeh {
                         Picker("Program target", selection: $model.programAperture) {
                             ForEach([3.5, 4, 5.6, 8, 11, 16], id: \.self) { aperture in
                                 Text(ExposureFormatting.aperture(aperture)).tag(aperture)

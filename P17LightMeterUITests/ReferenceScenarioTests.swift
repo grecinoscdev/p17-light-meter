@@ -20,6 +20,13 @@ final class ReferenceScenarioTests: XCTestCase {
         app.segmentedControls["mode"].buttons["Bokeh"].tap()
         app.swipeUp()
         XCTAssertTrue(app.staticTexts["recommendation"].label.contains("ND32"))
+        app.swipeDown()
+        app.segmentedControls["mode"].buttons["Slow-speed"].tap()
+        app.swipeUp()
+        XCTAssertTrue(app.staticTexts["recommendation"].label.contains("ND8"))
+        XCTAssertEqual(app.staticTexts["shutter"].label, "≈ 1/256 s")
+        XCTAssertTrue(app.staticTexts["At target f/8"].exists)
+        XCTAssertTrue(app.staticTexts["Program may choose another aperture."].exists)
     }
     #if targetEnvironment(simulator)
     @MainActor

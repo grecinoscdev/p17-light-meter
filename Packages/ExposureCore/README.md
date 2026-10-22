@@ -56,3 +56,10 @@ For Program use `.program(targetAperture: 8)`. The resulting exposure only estab
 Input failures throw `ExposureError`; physical exposure failures are result states. Nonfinite or nonrepresentable arithmetic never becomes a default reading. Exact calculations retain Double precision; only `NDRounding` and the app's formatters round. The 1e-12 EV tolerance absorbs floating-point noise, not measurement uncertainty.
 
 The maintained formulas and independent golden cases are in [PLAN.md](../../PLAN.md). [Research](../../doc/pentax17-deep-research-report.md) documents the distinction between official specifications, secondary f/16 evidence, and the Bokeh modeling assumption. Golden constants were independently checked using 40-digit decimal logarithms. No physical-device or reference-meter validation is claimed by these tests.
+
+
+`ExposureMode.slowSpeed(targetAperture:)` currently uses the same target-feasibility
+calculation as `.program(targetAperture:)`, while retaining a distinct mode identity
+for future features. It does not impose a fixed aperture or predict a separate
+Program curve. `SlowSpeedTests` checks parity across targets and exposure limits,
+invalid target rejection, and the independent EV15 / ISO400 / f/8 / ND8 golden case.

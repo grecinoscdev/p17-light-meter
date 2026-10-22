@@ -19,7 +19,7 @@ The PNG uses an earlier name. The app’s display name is **P17 Light Meter**, a
 
 - Measure reflected light through a fixed rear iPhone camera and display EV100.
 - Account for the photographer’s PENTAX ISO dial and exposure compensation.
-- Recommend an ND filter for Bokeh or a preferred Program-mode aperture.
+- Recommend an ND filter for Bokeh, a preferred aperture in P / Program or Slow-speed.
 - Compare filters through a native filter wheel, including a no-filter option and the user’s owned filters.
 - Show the required shutter, exposure limits, and whether the reading is live, held, manual, or still settling.
 - Offer tap-to-meter, Hold / Resume, manual EV entry, and device calibration.
@@ -29,11 +29,12 @@ The planned app works offline with settings and calibration stored on the device
 
 ## Understanding the results
 
-The two modes answer different questions:
+The three modes currently provide these calculations:
 
 | Mode | Intended answer | Limitation |
 | --- | --- | --- |
 | Bokeh | How much ND makes f/3.5 possible, and what exposure would the model require? | Camera behavior and phone measurements remain estimates until validated |
+| Slow-speed | Same target-aperture calculation as P / Program for now | Shares the Program target preference; dedicated features will be added later |
 | P / Program | How much ND makes the preferred aperture physically possible? | The camera may choose another aperture; its exact Program curve is not established |
 
 The default Program target will be f/8, an editable preference rather than a claim about the lens’s proven sharpest aperture. See [the plan’s camera model and correctness rules](PLAN.md#4-camera-model-and-correctness-rules) for the evidence and assumptions.
@@ -67,7 +68,7 @@ xcodebuild -project P17LightMeter.xcodeproj -scheme P17LightMeter \
   build CODE_SIGNING_ALLOWED=NO
 ```
 
-Verified October 22, 2026: **26 ExposureCore tests, 20 app tests, and 3 UI journeys passed.** Simulator and unsigned iPhone builds succeeded. Tests cover temporal stability/timeout/recovery, synthetic permission/interruption/failure events, stale timestamps, cancellation, held/manual provenance, existing exposure interactions, and the simulator's no-camera/manual fallback. Physical camera permissions, live capture, tap mapping, interruptions, VoiceOver traversal, and reference-meter accuracy still need a real iPhone; use the [M3 device checklist](doc/validation/M3-device-checks.md). No physical deployment or accuracy result is implied by the unsigned build. Xcode emitted SDK-version and unused App Intents metadata diagnostics; they did not fail the checks.
+Verified October 22, 2026: **29 ExposureCore tests, 21 app tests, and 3 UI journeys passed.** The simulator build and three-mode UI journey passed for the Slow-speed update. The unsigned iPhone build last passed during M3. Tests include Slow-speed/Program parity, editable targets, and ND recommendations and mode switching that preserves held readings and Program preferences, plus temporal stability/timeout/recovery, synthetic permission/interruption/failure events, stale timestamps, cancellation, held/manual provenance, existing exposure interactions, and the simulator's no-camera/manual fallback. Physical camera permissions, live capture, tap mapping, interruptions, VoiceOver traversal, and reference-meter accuracy still need a real iPhone; use the [M3 device checklist](doc/validation/M3-device-checks.md). No physical deployment or accuracy result is implied by the unsigned build. Xcode emitted SDK-version and unused App Intents metadata diagnostics; they did not fail the checks.
 
 The destination above is this machine's iPhone 18 Pro / iOS 27.0 simulator. On another Mac, use `xcrun simctl list devices available` and replace the ID with an installed iPhone simulator. The test command builds the app and runs app-state and UI tests; the separate Swift command runs domain tests. Build output is ignored under `build/`.
 
@@ -136,7 +137,7 @@ Update this README when setup, implemented features, or verification commands ch
 
 ## Trying the interface and real metering
 
-- Switch between Bokeh and Program. Bokeh fixes the target at f/3.5; Program retains your chosen aperture preference.
+- Switch between Bokeh, P / Program, and Slow-speed. Bokeh targets f/3.5. P / Program and Slow-speed share the same editable aperture preference and calculation behavior for now. Both show required exposures outside 1/350…4 s as out of range. Slow-speed remains a separate selection for future features.
 - Open Camera settings (sliders icon or ISO/target pill) to change ISO, EC, Program target, or the thirds grid.
 - Tap a filter card to compare it. The selected filter and recommended filter remain separately labeled. Use recommendation restores automatic selection. The app cannot detect the mounted PENTAX filter.
 - Hold freezes the accepted camera or simulated reading and timestamp while settings continue recalculating. Resume metering restarts capture and settling; Resume simulation accepts a fresh EV15 sample.

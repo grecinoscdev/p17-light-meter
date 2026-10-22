@@ -66,7 +66,7 @@ struct FilterPanel: View {
     }
 
     @ViewBuilder private func exposureDetails(_ exposure: ExposureAssessment) -> some View {
-        if model.isProgram {
+        if model.cameraMode != .bokeh {
             Text("At target \(ExposureFormatting.aperture(model.targetAperture))").font(.headline)
             Text(ExposureFormatting.shutter(exposure.target.shutterSeconds)).font(.largeTitle.bold()).accessibilityIdentifier("shutter")
             Text("Program may choose another aperture.")

@@ -4,10 +4,12 @@ import Foundation
 public enum ExposureMode: Equatable, Sendable {
     case program(targetAperture: Double)
     case bokeh
+    /// Currently shares Program target feasibility; separate identity for future features.
+    case slowSpeed(targetAperture: Double)
 
     public var targetAperture: Double {
         switch self {
-        case let .program(targetAperture): targetAperture
+        case let .program(targetAperture), let .slowSpeed(targetAperture): targetAperture
         case .bokeh: Pentax17Profile.apertureRange.lowerBound
         }
     }

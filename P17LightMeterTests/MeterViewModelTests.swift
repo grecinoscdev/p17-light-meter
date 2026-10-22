@@ -23,14 +23,14 @@ final class MeterViewModelTests: XCTestCase {
         XCTAssertEqual(try recommended(reference).filter.stops, 3)
         XCTAssertEqual(try recommended(reference).exposure.target.shutterSeconds, 1.0 / 256)
         let firstLaunch = model(reference: false); await firstLaunch.load()
-        XCTAssertFalse(firstLaunch.isProgram)
+        XCTAssertEqual(firstLaunch.cameraMode, .bokeh)
         XCTAssertEqual(firstLaunch.cameraISO, 100)
         XCTAssertEqual(try recommended(firstLaunch).filter.stops, 3)
     }
     func testSettingsRecalculateHeldReadingWithoutChangingTimestamp() async throws {
         let model = model(); await model.load(); model.hold()
         let held = model.reading
-        model.isProgram = false
+        model.cameraMode = .bokeh
         XCTAssertEqual(try recommended(model).filter.stops, 5)
         model.compensationThirds = 3
         XCTAssertEqual(try recommended(model).filter.stops, 4)
@@ -39,6 +39,28 @@ final class MeterViewModelTests: XCTestCase {
         XCTAssertEqual(model.reading, held)
         XCTAssertEqual(model.kind, .held)
     }
+    func testSlowSpeedSharesProgramTargetAndPreservesHeldReadingAndFilter() async throws {
+        let model = model(); await model.load(); model.hold()
+        model.programAperture = 11
+        model.selectedFilter = NDFilter.catalog.first { $0.stops == 3 }
+        let held = model.reading
+        let program = try result(model)
+        model.cameraMode = .slowSpeed
+        XCTAssertEqual(model.targetAperture, 11)
+        XCTAssertEqual(try result(model).exactMinimumStops, program.exactMinimumStops)
+        XCTAssertEqual(try result(model).selected?.exposure.target, program.selected?.exposure.target)
+        model.programAperture = 8
+        XCTAssertEqual(try recommended(model).filter.stops, 3)
+        XCTAssertEqual(try recommended(model).exposure.target.shutterSeconds, 1.0 / 256)
+        XCTAssertEqual(model.reading, held)
+        XCTAssertEqual(model.kind, .held)
+        model.cameraMode = .bokeh
+        XCTAssertEqual(model.targetAperture, 3.5)
+        model.cameraMode = .program
+        XCTAssertEqual(model.targetAperture, 8)
+        XCTAssertEqual(model.selectedFilter?.stops, 3)
+    }
+
     func testManualSelectionAndAutomaticRestoreRemainSeparate() async throws {
         let model = model(); await model.load()
         model.selectedFilter = NDFilter.catalog[0]

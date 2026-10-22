@@ -21,14 +21,16 @@ struct MeterView: View {
                         .accessibilityLabel("Camera settings")
                 }
                 if textSize.isAccessibilitySize {
-                    Picker("Camera mode", selection: $model.isProgram) {
-                        Text("Bokeh").tag(false)
-                        Text("P / Program").tag(true)
+                    Picker("Camera mode", selection: $model.cameraMode) {
+                        ForEach(MeterViewModel.CameraMode.allCases) { mode in
+                            Text(mode.rawValue).tag(mode)
+                        }
                     }.pickerStyle(.menu).frame(minHeight: MeterTheme.minimumTouchHeight)
                 } else {
-                    Picker("Camera mode", selection: $model.isProgram) {
-                        Text("Bokeh").tag(false)
-                        Text("P / Program").tag(true)
+                    Picker("Camera mode", selection: $model.cameraMode) {
+                        ForEach(MeterViewModel.CameraMode.allCases) { mode in
+                            Text(mode.rawValue).tag(mode)
+                        }
                     }.pickerStyle(.segmented).accessibilityIdentifier("mode")
                 }
                 ViewThatFits(in: .horizontal) {
