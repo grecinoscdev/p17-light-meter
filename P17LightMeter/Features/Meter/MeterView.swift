@@ -41,7 +41,7 @@ struct MeterView: View {
                 if !textSize.isAccessibilitySize {
                     ZStack {
                         if let camera = viewModel.camera {
-                            CameraPreview(camera: camera, centerResetID: viewModel.centerResetID,
+                            CameraPreview(camera: camera, format: viewModel.previewFormat, centerResetID: viewModel.centerResetID,
                                 allowsMetering: viewModel.canChooseMeteringPoint,
                                 onMeteringPointChanged: { viewModel.pointWillChange() })
                         }
@@ -158,8 +158,9 @@ struct DemoViewfinder: View {
                 LinearGradient(colors: [MeterTheme.panel, .black], startPoint: .topLeading, endPoint: .bottomTrailing)
             }
             GeometryReader { geometry in
-                let height = geometry.size.height - 36
-                let width = height * 17 / 24
+                let guide = CompositionGuide.frame(in: CGRect(origin: .zero, size: geometry.size))
+                let height = guide.height
+                let width = guide.width
                 ZStack {
                     Rectangle().stroke(MeterTheme.accent, lineWidth: 2)
                     if showsGrid {
@@ -173,7 +174,7 @@ struct DemoViewfinder: View {
                         }.stroke(.white.opacity(0.2))
                     }
                     if !hasCamera { Image(systemName: "scope").font(.title).foregroundStyle(MeterTheme.accent) }
-                }.frame(width: width, height: height).position(x: geometry.size.width / 2, y: geometry.size.height / 2)
+                }.frame(width: width, height: height).position(x: guide.midX, y: guide.midY)
             }.accessibilityHidden(true)
             VStack { Spacer(); Text(hasCamera ? "17 × 24 · Approximate guide" : "17 × 24 · Approximate guide · No camera preview").font(.caption2).padding(6).background(MeterTheme.background) }
         }.clipShape(RoundedRectangle(cornerRadius: 20))

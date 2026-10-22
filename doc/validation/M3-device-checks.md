@@ -1,7 +1,11 @@
 # M3 physical-device validation — pending
 
-No physical-camera or reference-meter results have been recorded. Simulator tests
-and a successful device build do not satisfy M3's hardware exit criterion.
+The user reports successful app operation on an iPhone 16 Pro Max, before the
+framing correction. Detailed lifecycle and reference-meter results remain pending.
+The original green guide matched the PENTAX view at 3.2 m versus 2.2 m with the
+PENTAX. The corrected preview passed its simulator geometry/regression tests and
+an unsigned iPhone build on October 22, 2026. It has not yet been compared against
+the physical camera after the correction.
 
 Run on a signed physical iPhone with no launch arguments. Record the iPhone model,
 iOS version, lighting, steps, and actual result for each check below. Calibration
@@ -24,3 +28,11 @@ and persisted settings belong to M4; all M3 camera readings are uncalibrated.
 Watch for incorrect tap mapping, timestamp stalls, persistent settling in steady
 light, and readings that appear stable while the phone is exposure-limited. Those
 require device evidence before adjusting the initial quality thresholds.
+
+
+For the framing recheck, compare the same two edge landmarks inside the green guide
+and the PENTAX bright-frame lines, with both devices at the same marked position
+and orientation. Repeat near 2.2 m and with a more distant scene. Record whether
+the app shows more or less at the top/bottom and sides. Also tap an off-center
+landmark to confirm that exposure weighting follows the displayed image. Optical
+viewfinder parallax means close-up agreement is not a guarantee of film framing.

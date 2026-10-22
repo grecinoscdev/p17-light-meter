@@ -25,6 +25,7 @@ final class CameraLightMeter: NSObject, LightMeter, AVCaptureVideoDataOutputSamp
     private var lastFrameSeconds = 0.0
     private var lastPresentationSeconds = -Double.infinity
     private var lastEvent: MeterEvent?
+    private var previewFormat: CameraPreviewFormat?
     private enum CaptureStatus { case stopped, running, interrupted, failed }
     private var captureStatus: CaptureStatus = .stopped
     // Half a stop residual is a conservative AE failure gate, pending device validation.
@@ -105,9 +106,14 @@ final class CameraLightMeter: NSObject, LightMeter, AVCaptureVideoDataOutputSamp
             }
             session.addOutput(videoOutput)
             session.commitConfiguration()
+            // Stabilization adds a changing crop that would invalidate the FOV estimate.
+            if let connection = videoOutput.connection(with: .video), connection.isVideoStabilizationSupported {
+                connection.preferredVideoStabilizationMode = .off
+            }
             device = camera
             output = videoOutput
             try camera.lockForConfiguration()
+            camera.videoZoomFactor = 1
             camera.exposureMode = .continuousAutoExposure
             camera.setExposureTargetBias(0)
             if camera.hasTorch && camera.isTorchModeSupported(.off) { camera.torchMode = .off }
@@ -167,6 +173,7 @@ final class CameraLightMeter: NSObject, LightMeter, AVCaptureVideoDataOutputSamp
         lastFrameSeconds = seconds
         guard seconds - lastSampleSeconds >= ReadingStability.sampleInterval else { return }
         lastSampleSeconds = seconds
+        updatePreviewFormat(camera: camera, sampleBuffer: sampleBuffer)
         // Device exposure properties describe the current AE solution. Frame callbacks
         // establish freshness; they are not a calibrated, per-pixel luminance measure.
         let sceneEV100 = try? SceneExposure.ev100(phoneAperture: Double(camera.lensAperture),
@@ -177,6 +184,19 @@ final class CameraLightMeter: NSObject, LightMeter, AVCaptureVideoDataOutputSamp
         let limited = !offset.isFinite || abs(offset) > Self.maximumExposureTargetOffsetEV
         publish(stability.accept(sceneEV100: sceneEV100, adjusting: camera.isAdjustingExposure,
             exposureLimited: limited, seconds: seconds, timestamp: Date().addingTimeInterval(-frameAgeSeconds)))
+    }
+
+    private func updatePreviewFormat(camera: AVCaptureDevice, sampleBuffer: CMSampleBuffer) {
+        guard let description = CMSampleBufferGetFormatDescription(sampleBuffer) else { return }
+        let activeFormat = camera.activeFormat
+        let dimensions = CMVideoFormatDescriptionGetDimensions(activeFormat.formatDescription)
+        let outputDimensions = CMVideoFormatDescriptionGetDimensions(description)
+        let fieldOfView = camera.isGeometricDistortionCorrectionEnabled
+            ? activeFormat.geometricDistortionCorrectedVideoFieldOfView : activeFormat.videoFieldOfView
+        previewFormat = CameraPreviewFormat(horizontalFieldOfViewDegrees: Double(fieldOfView),
+            formatWidth: Double(dimensions.width), formatHeight: Double(dimensions.height),
+            outputWidth: Double(outputDimensions.width), outputHeight: Double(outputDimensions.height),
+            zoomFactor: Double(camera.videoZoomFactor))
     }
 
     private func startWatchdog() {
@@ -237,6 +257,7 @@ final class CameraLightMeter: NSObject, LightMeter, AVCaptureVideoDataOutputSamp
         if let device {
             continuation?.yield(.pointMeteringSupported(device.isExposurePointOfInterestSupported))
         }
+        continuation?.yield(.previewFormat(previewFormat))
         continuation?.yield(event)
         lastEvent = event
     }
@@ -253,6 +274,7 @@ final class CameraLightMeter: NSObject, LightMeter, AVCaptureVideoDataOutputSamp
         for output in session.outputs { session.removeOutput(output) }
         session.commitConfiguration()
         device = nil; output = nil
+        previewFormat = nil
         continuation?.finish(); continuation = nil
         subscriptionID = nil; lastEvent = nil
     }

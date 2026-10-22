@@ -1,41 +1,433 @@
 // !$*UTF8*$!
-{archiveVersion = 1; classes = {}; objectVersion = 77; objects = {
-000000000000000000000001 = {isa = XCBuildConfiguration; name = Debug; buildSettings = {IPHONEOS_DEPLOYMENT_TARGET = 17.0; SDKROOT = iphoneos; SWIFT_VERSION = 6.0; CLANG_ENABLE_MODULES = YES; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; ONLY_ACTIVE_ARCH = YES; ENABLE_TESTABILITY = YES; DEBUG_INFORMATION_FORMAT = dwarf;};};
-000000000000000000000002 = {isa = XCBuildConfiguration; name = Release; buildSettings = {IPHONEOS_DEPLOYMENT_TARGET = 17.0; SDKROOT = iphoneos; SWIFT_VERSION = 6.0; CLANG_ENABLE_MODULES = YES; SWIFT_COMPILATION_MODE = wholemodule;};};
-000000000000000000000003 = {isa = XCConfigurationList; buildConfigurations = (000000000000000000000001, 000000000000000000000002); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release;};
-000000000000000000000004 = {isa = XCLocalSwiftPackageReference; relativePath = Packages/ExposureCore;};
-000000000000000000000005 = {isa = XCSwiftPackageProductDependency; package = 000000000000000000000004; productName = ExposureCore;};
-000000000000000000000006 = {isa = PBXBuildFile; productRef = 000000000000000000000005;};
-000000000000000000000007 = {isa = PBXFileSystemSynchronizedRootGroup; path = P17LightMeter; sourceTree = "<group>";};
-000000000000000000000008 = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = P17LightMeter.app; sourceTree = BUILT_PRODUCTS_DIR;};
-000000000000000000000009 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0;};
-00000000000000000000000A = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (000000000000000000000006); runOnlyForDeploymentPostprocessing = 0;};
-00000000000000000000000B = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0;};
-00000000000000000000000C = {isa = XCBuildConfiguration; name = Debug; buildSettings = {PRODUCT_NAME = "$(TARGET_NAME)"; PRODUCT_BUNDLE_IDENTIFIER = com.example.P17LightMeter; GENERATE_INFOPLIST_FILE = YES; TARGETED_DEVICE_FAMILY = 1; CODE_SIGN_STYLE = Automatic; INFOPLIST_KEY_CFBundleDisplayName = "P17 Light Meter"; INFOPLIST_KEY_UILaunchScreen_Generation = YES; INFOPLIST_KEY_NSCameraUsageDescription = "P17 Light Meter uses the rear camera to measure scene light and show a composition preview. Images are not recorded or uploaded."; INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; ONLY_ACTIVE_ARCH = YES; ENABLE_TESTABILITY = YES; DEBUG_INFORMATION_FORMAT = dwarf;};};
-00000000000000000000000D = {isa = XCBuildConfiguration; name = Release; buildSettings = {PRODUCT_NAME = "$(TARGET_NAME)"; PRODUCT_BUNDLE_IDENTIFIER = com.example.P17LightMeter; GENERATE_INFOPLIST_FILE = YES; TARGETED_DEVICE_FAMILY = 1; CODE_SIGN_STYLE = Automatic; INFOPLIST_KEY_CFBundleDisplayName = "P17 Light Meter"; INFOPLIST_KEY_UILaunchScreen_Generation = YES; INFOPLIST_KEY_NSCameraUsageDescription = "P17 Light Meter uses the rear camera to measure scene light and show a composition preview. Images are not recorded or uploaded."; INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait; SWIFT_COMPILATION_MODE = wholemodule;};};
-00000000000000000000000E = {isa = XCConfigurationList; buildConfigurations = (00000000000000000000000C, 00000000000000000000000D); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release;};
-00000000000000000000000F = {isa = PBXNativeTarget; buildConfigurationList = 00000000000000000000000E; buildPhases = (000000000000000000000009, 00000000000000000000000A, 00000000000000000000000B); buildRules = (); dependencies = (); fileSystemSynchronizedGroups = (000000000000000000000007); name = P17LightMeter; packageProductDependencies = (000000000000000000000005); productName = P17LightMeter; productReference = 000000000000000000000008; productType = "com.apple.product-type.application";};
-000000000000000000000010 = {isa = PBXFileSystemSynchronizedRootGroup; path = P17LightMeterTests; sourceTree = "<group>";};
-000000000000000000000011 = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = P17LightMeterTests.xctest; sourceTree = BUILT_PRODUCTS_DIR;};
-000000000000000000000012 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0;};
-000000000000000000000013 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0;};
-000000000000000000000014 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0;};
-000000000000000000000015 = {isa = PBXTargetDependency; target = 00000000000000000000000F;};
-000000000000000000000016 = {isa = XCBuildConfiguration; name = Debug; buildSettings = {PRODUCT_NAME = "$(TARGET_NAME)"; PRODUCT_BUNDLE_IDENTIFIER = com.example.P17LightMeterTests; GENERATE_INFOPLIST_FILE = YES; TARGETED_DEVICE_FAMILY = 1; CODE_SIGN_STYLE = Automatic; TEST_HOST = "$(BUILT_PRODUCTS_DIR)/P17LightMeter.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/P17LightMeter"; BUNDLE_LOADER = "$(TEST_HOST)"; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; ONLY_ACTIVE_ARCH = YES; ENABLE_TESTABILITY = YES; DEBUG_INFORMATION_FORMAT = dwarf;};};
-000000000000000000000017 = {isa = XCBuildConfiguration; name = Release; buildSettings = {PRODUCT_NAME = "$(TARGET_NAME)"; PRODUCT_BUNDLE_IDENTIFIER = com.example.P17LightMeterTests; GENERATE_INFOPLIST_FILE = YES; TARGETED_DEVICE_FAMILY = 1; CODE_SIGN_STYLE = Automatic; TEST_HOST = "$(BUILT_PRODUCTS_DIR)/P17LightMeter.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/P17LightMeter"; BUNDLE_LOADER = "$(TEST_HOST)"; SWIFT_COMPILATION_MODE = wholemodule;};};
-000000000000000000000018 = {isa = XCConfigurationList; buildConfigurations = (000000000000000000000016, 000000000000000000000017); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release;};
-000000000000000000000019 = {isa = PBXNativeTarget; buildConfigurationList = 000000000000000000000018; buildPhases = (000000000000000000000012, 000000000000000000000013, 000000000000000000000014); buildRules = (); dependencies = (000000000000000000000015); fileSystemSynchronizedGroups = (000000000000000000000010); name = P17LightMeterTests; packageProductDependencies = (); productName = P17LightMeterTests; productReference = 000000000000000000000011; productType = "com.apple.product-type.bundle.unit-test";};
-00000000000000000000001A = {isa = PBXFileSystemSynchronizedRootGroup; path = P17LightMeterUITests; sourceTree = "<group>";};
-00000000000000000000001B = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = P17LightMeterUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR;};
-00000000000000000000001C = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0;};
-00000000000000000000001D = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0;};
-00000000000000000000001E = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0;};
-00000000000000000000001F = {isa = PBXTargetDependency; target = 00000000000000000000000F;};
-000000000000000000000020 = {isa = XCBuildConfiguration; name = Debug; buildSettings = {PRODUCT_NAME = "$(TARGET_NAME)"; PRODUCT_BUNDLE_IDENTIFIER = com.example.P17LightMeterUITests; GENERATE_INFOPLIST_FILE = YES; TARGETED_DEVICE_FAMILY = 1; CODE_SIGN_STYLE = Automatic; TEST_TARGET_NAME = P17LightMeter; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; ONLY_ACTIVE_ARCH = YES; ENABLE_TESTABILITY = YES; DEBUG_INFORMATION_FORMAT = dwarf;};};
-000000000000000000000021 = {isa = XCBuildConfiguration; name = Release; buildSettings = {PRODUCT_NAME = "$(TARGET_NAME)"; PRODUCT_BUNDLE_IDENTIFIER = com.example.P17LightMeterUITests; GENERATE_INFOPLIST_FILE = YES; TARGETED_DEVICE_FAMILY = 1; CODE_SIGN_STYLE = Automatic; TEST_TARGET_NAME = P17LightMeter; SWIFT_COMPILATION_MODE = wholemodule;};};
-000000000000000000000022 = {isa = XCConfigurationList; buildConfigurations = (000000000000000000000020, 000000000000000000000021); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release;};
-000000000000000000000023 = {isa = PBXNativeTarget; buildConfigurationList = 000000000000000000000022; buildPhases = (00000000000000000000001C, 00000000000000000000001D, 00000000000000000000001E); buildRules = (); dependencies = (00000000000000000000001F); fileSystemSynchronizedGroups = (00000000000000000000001A); name = P17LightMeterUITests; packageProductDependencies = (); productName = P17LightMeterUITests; productReference = 00000000000000000000001B; productType = "com.apple.product-type.bundle.ui-testing";};
-000000000000000000000024 = {isa = PBXGroup; children = (000000000000000000000008, 000000000000000000000011, 00000000000000000000001B); name = Products; sourceTree = "<group>";};
-000000000000000000000025 = {isa = PBXGroup; children = (000000000000000000000007, 000000000000000000000010, 00000000000000000000001A, 000000000000000000000024); sourceTree = "<group>";};
-000000000000000000000026 = {isa = PBXProject; attributes = {BuildIndependentTargetsInParallel = YES; LastUpgradeCheck = 2710;}; buildConfigurationList = 000000000000000000000003; compatibilityVersion = "Xcode 16.0"; developmentRegion = en; knownRegions = (en, Base); mainGroup = 000000000000000000000025; productRefGroup = 000000000000000000000024; projectDirPath = ""; projectRoot = ""; packageReferences = (000000000000000000000004); targets = (00000000000000000000000F, 000000000000000000000019, 000000000000000000000023);};
-}; rootObject = 000000000000000000000026;}
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 71;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		000000000000000000000006 /* ExposureCore in Frameworks */ = {isa = PBXBuildFile; productRef = 000000000000000000000005 /* ExposureCore */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		BC45FAC5308A783000BF6673 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 000000000000000000000026 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 00000000000000000000000F;
+			remoteInfo = P17LightMeter;
+		};
+		BC45FAC6308A783000BF6673 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 000000000000000000000026 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 00000000000000000000000F;
+			remoteInfo = P17LightMeter;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		000000000000000000000008 /* P17LightMeter.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = P17LightMeter.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		000000000000000000000011 /* P17LightMeterTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = P17LightMeterTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		00000000000000000000001B /* P17LightMeterUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = P17LightMeterUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		000000000000000000000007 /* P17LightMeter */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = P17LightMeter; sourceTree = "<group>"; };
+		000000000000000000000010 /* P17LightMeterTests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = P17LightMeterTests; sourceTree = "<group>"; };
+		00000000000000000000001A /* P17LightMeterUITests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = P17LightMeterUITests; sourceTree = "<group>"; };
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		00000000000000000000000A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				000000000000000000000006 /* ExposureCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		000000000000000000000013 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		00000000000000000000001D /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		000000000000000000000024 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				000000000000000000000008 /* P17LightMeter.app */,
+				000000000000000000000011 /* P17LightMeterTests.xctest */,
+				00000000000000000000001B /* P17LightMeterUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		000000000000000000000025 = {
+			isa = PBXGroup;
+			children = (
+				000000000000000000000007 /* P17LightMeter */,
+				000000000000000000000010 /* P17LightMeterTests */,
+				00000000000000000000001A /* P17LightMeterUITests */,
+				000000000000000000000024 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		00000000000000000000000F /* P17LightMeter */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 00000000000000000000000E /* Build configuration list for PBXNativeTarget "P17LightMeter" */;
+			buildPhases = (
+				000000000000000000000009 /* Sources */,
+				00000000000000000000000A /* Frameworks */,
+				00000000000000000000000B /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				000000000000000000000007 /* P17LightMeter */,
+			);
+			name = P17LightMeter;
+			packageProductDependencies = (
+				000000000000000000000005 /* ExposureCore */,
+			);
+			productName = P17LightMeter;
+			productReference = 000000000000000000000008 /* P17LightMeter.app */;
+			productType = "com.apple.product-type.application";
+		};
+		000000000000000000000019 /* P17LightMeterTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 000000000000000000000018 /* Build configuration list for PBXNativeTarget "P17LightMeterTests" */;
+			buildPhases = (
+				000000000000000000000012 /* Sources */,
+				000000000000000000000013 /* Frameworks */,
+				000000000000000000000014 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				000000000000000000000015 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				000000000000000000000010 /* P17LightMeterTests */,
+			);
+			name = P17LightMeterTests;
+			packageProductDependencies = (
+			);
+			productName = P17LightMeterTests;
+			productReference = 000000000000000000000011 /* P17LightMeterTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		000000000000000000000023 /* P17LightMeterUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 000000000000000000000022 /* Build configuration list for PBXNativeTarget "P17LightMeterUITests" */;
+			buildPhases = (
+				00000000000000000000001C /* Sources */,
+				00000000000000000000001D /* Frameworks */,
+				00000000000000000000001E /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				00000000000000000000001F /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				00000000000000000000001A /* P17LightMeterUITests */,
+			);
+			name = P17LightMeterUITests;
+			packageProductDependencies = (
+			);
+			productName = P17LightMeterUITests;
+			productReference = 00000000000000000000001B /* P17LightMeterUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		000000000000000000000026 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 2710;
+			};
+			buildConfigurationList = 000000000000000000000003 /* Build configuration list for PBXProject "P17LightMeter" */;
+			compatibilityVersion = "Xcode 16.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 000000000000000000000025;
+			packageReferences = (
+				000000000000000000000004 /* XCLocalSwiftPackageReference "Packages/ExposureCore" */,
+			);
+			productRefGroup = 000000000000000000000024 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				00000000000000000000000F /* P17LightMeter */,
+				000000000000000000000019 /* P17LightMeterTests */,
+				000000000000000000000023 /* P17LightMeterUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		00000000000000000000000B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		000000000000000000000014 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		00000000000000000000001E /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		000000000000000000000009 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		000000000000000000000012 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		00000000000000000000001C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		000000000000000000000015 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 00000000000000000000000F /* P17LightMeter */;
+			targetProxy = BC45FAC5308A783000BF6673 /* PBXContainerItemProxy */;
+		};
+		00000000000000000000001F /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 00000000000000000000000F /* P17LightMeter */;
+			targetProxy = BC45FAC6308A783000BF6673 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		000000000000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_TESTABILITY = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		000000000000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		00000000000000000000000C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = 62W6T6T5F6;
+				ENABLE_TESTABILITY = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "P17 Light Meter";
+				INFOPLIST_KEY_NSCameraUsageDescription = "P17 Light Meter uses the rear camera to measure scene light and show a composition preview. Images are not recorded or uploaded.";
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.grecinosc.P17LightMeter;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		00000000000000000000000D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 62W6T6T5F6;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "P17 Light Meter";
+				INFOPLIST_KEY_NSCameraUsageDescription = "P17 Light Meter uses the rear camera to measure scene light and show a composition preview. Images are not recorded or uploaded.";
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				PRODUCT_BUNDLE_IDENTIFIER = com.grecinosc.P17LightMeter;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_COMPILATION_MODE = wholemodule;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		000000000000000000000016 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_TESTABILITY = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.P17LightMeterTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/P17LightMeter.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/P17LightMeter";
+			};
+			name = Debug;
+		};
+		000000000000000000000017 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.P17LightMeterTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_COMPILATION_MODE = wholemodule;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/P17LightMeter.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/P17LightMeter";
+			};
+			name = Release;
+		};
+		000000000000000000000020 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_TESTABILITY = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.P17LightMeterUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = P17LightMeter;
+			};
+			name = Debug;
+		};
+		000000000000000000000021 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.P17LightMeterUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_COMPILATION_MODE = wholemodule;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = P17LightMeter;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		000000000000000000000003 /* Build configuration list for PBXProject "P17LightMeter" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				000000000000000000000001 /* Debug */,
+				000000000000000000000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		00000000000000000000000E /* Build configuration list for PBXNativeTarget "P17LightMeter" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				00000000000000000000000C /* Debug */,
+				00000000000000000000000D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		000000000000000000000018 /* Build configuration list for PBXNativeTarget "P17LightMeterTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				000000000000000000000016 /* Debug */,
+				000000000000000000000017 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		000000000000000000000022 /* Build configuration list for PBXNativeTarget "P17LightMeterUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				000000000000000000000020 /* Debug */,
+				000000000000000000000021 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		000000000000000000000004 /* XCLocalSwiftPackageReference "Packages/ExposureCore" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/ExposureCore;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		000000000000000000000005 /* ExposureCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 000000000000000000000004 /* XCLocalSwiftPackageReference "Packages/ExposureCore" */;
+			productName = ExposureCore;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 000000000000000000000026 /* Project object */;
+}

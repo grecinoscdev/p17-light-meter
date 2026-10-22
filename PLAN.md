@@ -201,7 +201,7 @@ Use the reference’s dark teal/charcoal, lime accents, rounded outlines, and st
 The frame’s **aspect ratio** and its **field of view** are separate requirements. A 17:24 rectangle alone does not reproduce the PENTAX lens view.
 
 - v1 provides a composition guide labeled approximate; do not promise exact 37 mm-equivalent framing from an arbitrary phone crop.
-- Evaluate the fixed phone camera’s active format, preview crop, and optical field of view to size a closer guide. Validate against actual framing before enabling a stronger claim.
+- Use the fixed phone camera’s active-format FOV and video output dimensions to scale the image under the existing guide. The pinhole target is a 25 mm lens on 17 × 24 mm film. Revalidate against actual framing before enabling a stronger claim.
 - Keep the full preview visible around the guide where possible. Avoid assuming the same screen fractions work on every phone.
 - Transform taps through `AVCaptureVideoPreviewLayer` coordinate conversion, accounting for aspect-fill crop and orientation; avoid hand-coded normalized screen coordinates.
 - The dimmed area is a visual composition mask, not a guarantee that iPhone AE excludes that area. Tap-to-meter is exposure weighting, not a calibrated spot meter or an exact reproduction of PENTAX partial metering.
@@ -454,3 +454,32 @@ Verification after the correction: 29 core tests, 21 app tests, and 3 simulator 
 journeys passed. The UI journey confirms Slow-speed and Program both show target
 f/8 with ND8 at 1/256 s for the reference scene. Physical-device validation remains
 pending.
+
+
+### Framing correction — physical comparison
+
+The user reports that the app works on an iPhone 16 Pro Max. In a comparison using
+the green guide, the PENTAX 17 was 2.2 m from the subject and the phone needed to
+move back to 3.2 m for similar framing. This implies an approximate display-scale
+ratio of 2.2/3.2 = 0.6875, or a 31.25% reduction from the previous image scale at
+the same position. This is a comparison baseline, not a calibrated universal factor.
+
+The old preview aspect-filled a wide panel independently of the portrait guide,
+introducing an extra screen-dependent crop. The new image rectangle is based on
+active-format FOV, geometric distortion correction, output crop, zoom, and the
+shared guide rectangle. Portrait video height in points is:
+
+`guideHeight * tan(phoneOutputHorizontalFOV / 2) / (24 / (2 * 25))`
+
+The rotated video width follows its aspect ratio. This targets the film frame's
+angular extent without resizing the guide, adding controls, or modifying exposure
+math. The image may leave unused background outside the guide where the sensor's
+view ends. Tap conversion accounts for the layer's new origin and dimensions.
+Unknown or insufficient FOV falls back to the original approximate preview.
+
+Verification completed October 22, 2026: simulator tests passed (26 app tests,
+including five geometry regressions, and 3 UI journeys). The unsigned iPhone build
+also succeeded. No code fixes were needed during verification. The corrected
+framing still needs a new same-position comparison with the physical camera; the
+user's successful phone run predates this correction. ExposureCore was unchanged
+and its separate suite was not rerun in this verification pass.

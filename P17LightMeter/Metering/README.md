@@ -32,10 +32,28 @@ Initial quality policy, pending physical-device tuning:
 - After one second without fresh video frames, publish Stale and clear the window. Interruption events also invalidate live results; interruption end restarts settling. Runtime errors offer explicit Retry.
 - Stable describes repeatability only. There is no numeric accuracy claim, saved calibration, or validated Program map.
 
-`CameraPreview` owns portrait rotation, aspect-fill rendering, and tap conversion
+`CameraPreview` owns portrait rotation, field-of-view scaling, and tap conversion
 through `captureDevicePointConverted(fromLayerPoint:)`. The point biases camera AE;
 it is not a calibrated spot meter. Center metering is an accessible alternative.
-The 17:24 overlay is an approximate composition guide, not a validated field of view.
+The overlay and preview share `CompositionGuide.frame(in:)`, preserving the existing
+panel and guide layout. `PreviewFraming` scales the image so the guide approximates
+the angular extent of a 25 mm lens on 17 × 24 mm film (about 37.56° horizontal and
+51.28° vertical in portrait). It uses the active format's horizontal FOV, corrected
+FOV when geometric distortion correction is enabled, output aspect ratio, and zoom.
+Stabilization is disabled to avoid a variable crop. Capture remains on the physical
+wide camera at zoom 1; the display scale is separate from light-meter calculations.
+
+The portrait image no longer aspect-fills the wide panel independently of the guide.
+Where the sensor cannot supply the full area outside the guide, those outer areas
+remain background; the image is not stretched or fabricated to fill them. Invalid
+or insufficient FOV metadata retains the original approximate preview. Taps convert
+from view to the resized layer's coordinates first; taps outside its image are ignored.
+
+This is a pinhole estimate, not calibration of the PENTAX optical viewfinder or
+close-distance parallax. `PreviewFramingTests` covers both axes, panel widths,
+output cropping, zoom, and unavailable metadata. All five geometry tests passed on October 22, 2026, as part of 26 app tests
+and 3 simulator UI journeys. Simulator and unsigned iPhone builds succeeded.
+Real-camera framing and tap alignment still require a physical-device comparison.
 
 Tests: `ReadingStabilityTests` exercises the pure temporal policy with explicit
 monotonic times. `LiveMeterStateTests` exercises synthetic event streams, lifecycle,

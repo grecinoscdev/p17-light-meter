@@ -2,7 +2,15 @@
 
 A native iPhone light meter in development for PENTAX 17 photographers. It will measure scene light and help answer: **“Which ND filter should I use for this shot?”**
 
-**Current status: M3 camera metering implemented; physical-device validation pending.** The default launch uses the fixed rear wide-angle camera with permission handling, preview/tap metering, settling, live EV100, Hold/manual input, and interruption recovery. Live readings are explicitly **uncalibrated**. Simulator users can enter manual EV or opt into the EV15 demo; preferences still reset on launch.
+**Current status: M3 metering has been user-tested on an iPhone 16 Pro Max; detailed device and accuracy validation remain pending.** The default launch uses the fixed rear wide-angle camera with permission handling, preview/tap metering, settling, live EV100, Hold/manual input, and interruption recovery. Live readings are explicitly **uncalibrated**. Simulator users can enter manual EV or opt into the EV15 demo; preferences still reset on launch.
+
+
+The latest framing correction scales the preview under the existing green guide
+using the phone camera's reported field of view and the PENTAX's 25 mm lens / 17 ×
+24 mm frame. The layout is unchanged and the guide remains approximate. This
+correction passed **26 app tests (including five framing tests) and 3 UI journeys**
+on October 22, 2026. Simulator and unsigned iPhone builds succeeded. A new
+same-position comparison on the iPhone is still needed to validate actual framing.
 
 ## Start here
 
@@ -68,11 +76,11 @@ xcodebuild -project P17LightMeter.xcodeproj -scheme P17LightMeter \
   build CODE_SIGNING_ALLOWED=NO
 ```
 
-Verified October 22, 2026: **29 ExposureCore tests, 21 app tests, and 3 UI journeys passed.** The simulator build and three-mode UI journey passed for the Slow-speed update. The unsigned iPhone build last passed during M3. Tests include Slow-speed/Program parity, editable targets, and ND recommendations and mode switching that preserves held readings and Program preferences, plus temporal stability/timeout/recovery, synthetic permission/interruption/failure events, stale timestamps, cancellation, held/manual provenance, existing exposure interactions, and the simulator's no-camera/manual fallback. Physical camera permissions, live capture, tap mapping, interruptions, VoiceOver traversal, and reference-meter accuracy still need a real iPhone; use the [M3 device checklist](doc/validation/M3-device-checks.md). No physical deployment or accuracy result is implied by the unsigned build. Xcode emitted SDK-version and unused App Intents metadata diagnostics; they did not fail the checks.
+Previous Slow-speed verification, October 22, 2026: **29 ExposureCore tests, 21 app tests, and 3 UI journeys passed.** The simulator build and three-mode UI journey passed for the Slow-speed update. The unsigned iPhone build last passed during M3. Tests include Slow-speed/Program parity, editable targets, and ND recommendations and mode switching that preserves held readings and Program preferences, plus temporal stability/timeout/recovery, synthetic permission/interruption/failure events, stale timestamps, cancellation, held/manual provenance, existing exposure interactions, and the simulator's no-camera/manual fallback. Physical camera permissions, live capture, tap mapping, interruptions, VoiceOver traversal, and reference-meter accuracy still need a real iPhone; use the [M3 device checklist](doc/validation/M3-device-checks.md). No physical deployment or accuracy result is implied by the unsigned build. Xcode emitted SDK-version and unused App Intents metadata diagnostics; they did not fail the checks.
 
 The destination above is this machine's iPhone 18 Pro / iOS 27.0 simulator. On another Mac, use `xcrun simctl list devices available` and replace the ID with an installed iPhone simulator. The test command builds the app and runs app-state and UI tests; the separate Swift command runs domain tests. Build output is ignored under `build/`.
 
-For a physical device, select your development team in Xcode Signing & Capabilities and replace the provisional `com.example.P17LightMeter` bundle identifier with one you own. Simulator builds do not require signing. No signing team or physical deployment has been verified.
+For a physical device, select your development team in Xcode Signing & Capabilities and replace the provisional `com.example.P17LightMeter` bundle identifier with one you own. Simulator builds do not require signing. The user has configured signing and reported a successful iPhone run. Automated iPhone builds here are unsigned.
 
 A physical iPhone and development signing are needed for camera testing. A trusted reflected-light meter is needed for accuracy validation. Real PENTAX 17 hardware and known ND filters are needed for field validation of camera recommendations.
 
@@ -92,7 +100,7 @@ Implemented layout:
 | `P17LightMeterUITests/` | Reference/demo journeys and no-camera manual fallback |
 | `doc/` | Research and visual reference |
 
-Persistence, owned-filter editing, and calibration remain future work. Real capture is implemented but has not yet been validated on physical hardware. See the [metering implementation guide](P17LightMeter/Metering/README.md) for queue ownership, sampling thresholds, and test entry points. The stock profile is compiled immutable data with version/provenance metadata; external profile import and empirical Program maps remain deferred. See [ExposureCore guide](Packages/ExposureCore/README.md) for API use and result semantics.
+Persistence, owned-filter editing, and calibration remain future work. The user has reported working capture on an iPhone 16 Pro Max; detailed lifecycle, accuracy, and corrected-framing checks remain pending. See the [metering implementation guide](P17LightMeter/Metering/README.md) for queue ownership, sampling thresholds, and test entry points. The stock profile is compiled immutable data with version/provenance metadata; external profile import and empirical Program maps remain deferred. See [ExposureCore guide](Packages/ExposureCore/README.md) for API use and result semantics.
 
 The intended data flow is:
 

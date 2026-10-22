@@ -14,6 +14,7 @@ enum MeterEvent: Equatable, Sendable {
     case unavailable(String)
     case reading(ExposureReading)
     case pointMeteringSupported(Bool)
+    case previewFormat(CameraPreviewFormat?)
 }
 
 /// Each subscription owns capture until cancelled. Events never contain imagery.

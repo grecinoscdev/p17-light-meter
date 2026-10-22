@@ -29,6 +29,7 @@ final class MeterViewModel {
     var showsGrid = true
     let camera: CameraLightMeter?
     private(set) var supportsPointMetering = false
+    private(set) var previewFormat: CameraPreviewFormat?
     private(set) var centerResetID = 0
     private var awaitsPointReset = false
     private let lightMeter: any LightMeter
@@ -92,6 +93,7 @@ final class MeterViewModel {
                 case .denied: state = .denied
                 case .interrupted: state = .interrupted
                 case let .unavailable(message): state = .failed(message)
+                case let .previewFormat(format): previewFormat = format
                 case let .pointMeteringSupported(supported): supportsPointMetering = supported
                 case let .reading(sample):
                     if awaitsPointReset { continue }
