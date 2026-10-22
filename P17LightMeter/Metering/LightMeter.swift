@@ -2,7 +2,7 @@ import Foundation
 
 /// Immutable measurement with explicit origin; demo data must never look live.
 struct ExposureReading: Equatable, Sendable {
-    enum Source: Sendable { case simulated }
+    enum Source: Sendable { case simulated, manual }
     let sceneEV100: Double
     let timestamp: Date
     let source: Source

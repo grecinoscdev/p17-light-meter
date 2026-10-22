@@ -1,34 +1,139 @@
 import XCTest
+import ExposureCore
 @testable import P17LightMeter
 
 @MainActor
 final class MeterViewModelTests: XCTestCase {
-    func testFakeReadingReachesPresentationWithoutLosingItsOrigin() async {
-        let sample = ExposureReading(sceneEV100: 15, timestamp: Date(timeIntervalSince1970: 0), source: .simulated)
-        let model = MeterViewModel(lightMeter: FakeLightMeter(sample: sample))
-        await model.load()
-        guard case let .ready(reading, assessment) = model.state else {
-            return XCTFail("Expected a calculated demo result")
+    private func model(reference: Bool = true, ev: Double = 15) -> MeterViewModel {
+        MeterViewModel(lightMeter: FakeLightMeter(sample: ExposureReading(sceneEV100: ev,
+            timestamp: Date(timeIntervalSince1970: 0), source: .simulated)),
+            now: { Date(timeIntervalSince1970: 123) }, referenceScenario: reference)
+    }
+    private func result(_ model: MeterViewModel) throws -> NDRecommendation {
+        try XCTUnwrap(model.calculation).get()
+    }
+    private func recommended(_ model: MeterViewModel) throws -> FilterAssessment {
+        guard case let .candidate(candidate) = try result(model).recommendation else {
+            throw ExposureError.unrepresentableExposure
         }
-        XCTAssertEqual(reading, sample)
-        XCTAssertEqual(assessment.shutterSeconds, 1.0 / 256.0, accuracy: 1e-12)
-        XCTAssertEqual(ExposureFormatting.shutter(assessment.shutterSeconds), "≈ 1/256 s")
+        return candidate
     }
-
-    func testInvalidReadingShowsFailureInsteadOfDemoDefaults() async {
-        let model = MeterViewModel(lightMeter: FakeLightMeter(sample:
-            ExposureReading(sceneEV100: .nan, timestamp: Date(), source: .simulated)))
-        await model.load()
-        guard case .failed = model.state else { return XCTFail("Expected explicit failure") }
+    func testReferenceScenarioAndDefaults() async throws {
+        let reference = model(); await reference.load()
+        XCTAssertEqual(try recommended(reference).filter.stops, 3)
+        XCTAssertEqual(try recommended(reference).exposure.target.shutterSeconds, 1.0 / 256)
+        let firstLaunch = model(reference: false); await firstLaunch.load()
+        XCTAssertFalse(firstLaunch.isProgram)
+        XCTAssertEqual(firstLaunch.cameraISO, 100)
+        XCTAssertEqual(try recommended(firstLaunch).filter.stops, 3)
     }
-
-    func testCancellationReturnsToIdle() async {
-        let model = MeterViewModel(lightMeter: CancelledMeter())
-        await model.load()
-        XCTAssertEqual(model.state, .idle)
+    func testSettingsRecalculateHeldReadingWithoutChangingTimestamp() async throws {
+        let model = model(); await model.load(); model.hold()
+        let held = model.reading
+        model.isProgram = false
+        XCTAssertEqual(try recommended(model).filter.stops, 5)
+        model.compensationThirds = 3
+        XCTAssertEqual(try recommended(model).filter.stops, 4)
+        model.cameraISO = 100
+        XCTAssertEqual(try recommended(model).filter.stops, 2)
+        XCTAssertEqual(model.reading, held)
+        XCTAssertEqual(model.kind, .held)
+    }
+    func testManualSelectionAndAutomaticRestoreRemainSeparate() async throws {
+        let model = model(); await model.load()
+        model.selectedFilter = NDFilter.catalog[0]
+        XCTAssertEqual(try result(model).selected?.exposure.target.range, .fasterThanShutterLimit)
+        XCTAssertEqual(try recommended(model).filter.stops, 3)
+        model.selectedFilter = nil
+        XCTAssertNil(try result(model).selected)
+        model.programAperture = 16
+        XCTAssertEqual(try recommended(model).filter.stops, 1)
+    }
+    func testManualValidationAndResume() async throws {
+        let model = model(); await model.load()
+        let original = model.state
+        for input in ["", "nan", "inf", "31", "-21", "hello"] {
+            XCTAssertFalse(model.enterManualEV(input)); XCTAssertEqual(model.state, original)
+        }
+        XCTAssertTrue(model.enterManualEV("8,5"))
+        XCTAssertEqual(model.kind, .manual)
+        XCTAssertEqual(model.reading?.timestamp, Date(timeIntervalSince1970: 123))
+        model.becameInactive(); XCTAssertEqual(model.kind, .manual)
+        model.resume(); XCTAssertNil(model.calculation)
+        await model.load(); XCTAssertEqual(model.kind, .simulated)
+        XCTAssertEqual(model.reading?.sceneEV100, 15)
+    }
+    func testStaleAndHeldLifecycle() async {
+        let model = model(); await model.load()
+        model.becameInactive(); XCTAssertEqual(model.state, .stale); XCTAssertNil(model.calculation)
+        model.becameActive(); await model.load(); model.hold()
+        model.becameInactive(); XCTAssertEqual(model.kind, .held)
+    }
+    func testInvalidReadingAndCancellation() async {
+        let invalid = model(ev: .nan); await invalid.load()
+        guard case .failed = invalid.state else { return XCTFail("Expected failure") }
+        XCTAssertNil(invalid.calculation)
+        let cancelled = MeterViewModel(lightMeter: CancelledMeter()); await cancelled.load()
+        XCTAssertEqual(cancelled.state, .idle)
+    }
+    func testSlowManualSceneHasNoAutomaticCandidate() async throws {
+        let model = model(reference: false)
+        XCTAssertTrue(model.enterManualEV("0"))
+        XCTAssertEqual(try result(model).recommendation, .noMatch(.exposuresTooSlow))
+        model.selectedFilter = NDFilter.catalog[0]
+        XCTAssertEqual(try XCTUnwrap(result(model).selected).exposure.target.shutterSeconds, 12.25, accuracy: 1e-12)
+    }
+    func testPendingSampleCannotOverwriteManualInput() async {
+        let meter = ControlledMeter()
+        let model = MeterViewModel(lightMeter: meter)
+        let task = Task { await model.load() }
+        await meter.waitUntilRequested()
+        XCTAssertEqual(model.state, .settling)
+        XCTAssertNil(model.calculation)
+        XCTAssertTrue(model.enterManualEV("10"))
+        await meter.complete()
+        await task.value
+        XCTAssertEqual(model.kind, .manual)
+        XCTAssertEqual(model.reading?.sceneEV100, 10)
+    }
+    func testBackgroundInvalidatesPendingSample() async {
+        let meter = ControlledMeter()
+        let model = MeterViewModel(lightMeter: meter)
+        let task = Task { await model.load() }
+        await meter.waitUntilRequested()
+        model.becameInactive()
+        await meter.complete()
+        await task.value
+        XCTAssertEqual(model.state, .stale)
+        XCTAssertNil(model.calculation)
+    }
+    func testFormattingDoesNotOverflowForExtremeManualExposures() {
+        XCTAssertEqual(ExposureFormatting.shutter(1.0 / 256), "≈ 1/256 s")
+        XCTAssertFalse(ExposureFormatting.shutter(1e-30).isEmpty)
     }
 }
-
 private struct CancelledMeter: LightMeter {
     func reading() async throws -> ExposureReading { throw CancellationError() }
+}
+
+/// Explicit test handshake exercises superseded asynchronous completions without sleeps.
+private actor ControlledMeter: LightMeter {
+    private var pending: CheckedContinuation<ExposureReading, Never>?
+    private var started: CheckedContinuation<Void, Never>?
+    func reading() async throws -> ExposureReading {
+        await withCheckedContinuation { continuation in
+            pending = continuation
+            started?.resume()
+            started = nil
+        }
+    }
+    func waitUntilRequested() async {
+        if pending != nil { return }
+        await withCheckedContinuation { started = $0 }
+    }
+    func complete() {
+        pending?.resume(returning: ExposureReading(sceneEV100: 15,
+            timestamp: Date(timeIntervalSince1970: 0), source: .simulated))
+        pending = nil
+    }
 }

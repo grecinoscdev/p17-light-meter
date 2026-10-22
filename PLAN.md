@@ -1,7 +1,7 @@
 # P17 Light Meter — Native iOS Implementation Plan
 
 Created: October 20, 2026  
-Status: M0 foundation and M1 exposure core implemented. M2 interface integration is next; M3–M5 remain planned.
+Status: M0 foundation and M1 exposure core implemented. M2 interface integration is implemented and simulator-tested; M3–M5 remain planned.
 App name: **P17 Light Meter**. Use `P17LightMeter` for project and target identifiers.
 
 ## 1. Product goal
@@ -384,3 +384,13 @@ Owned inventory is the supplied filter array. Include the no-filter entry explic
 26 package tests cover the golden cases, numerical boundaries, invalid samples/configuration/filter inputs, signs, exposure round trips and monotonicity, selected/recommended separation, inventory gaps, and uncertainty crossing either boundary. The fixed demo remains unchanged; M2 will wire this API to mode/settings/filter interactions. Temporal recommendation hysteresis remains M3 work to tune with real readings.
 
 M1 verification: all 26 package tests and all four simulator regression tests passed on the documented iPhone 18 Pro / iOS 27.0 destination. The reference screen still shows 1/256 s. No UI layout or hardware behavior was changed in this milestone.
+
+### M2 — Interactive simulated interface
+
+Implemented Bokeh/Program selection, ISO/EC and Program-target settings, generic ND filter cards including None, separate selected/recommended labels, automatic-selection restore, manual EV validation, Hold/Resume, timestamped provenance, and explicit invalid/stale states. All exposure results come from ExposureCore. The default is Bokeh / ISO100 / EC0 with simulated EV15; `--reference-scenario` reproduces the original Program screenshot inputs.
+
+The composition guide is a 17:24 illustration over a dark simulated viewfinder, not a camera image or calibrated field of view. It collapses for accessibility text sizes. The screen scrolls to keep controls reachable on compact devices. Real preview and tap-to-meter coordinate conversion remain M3 work. Camera permission, calibration, film-box ISO, owned-filter editing, and persistence remain in their planned later milestones.
+
+Manual EV entry accepts −20…30 EV100 as an explicit planning range, not a claim about the phone or PENTAX meter range. A request generation prevents old asynchronous samples overwriting manual input or restoring invalidated readings. SwiftUI owns and cancels sampling tasks. Unit tests use explicit completion handshakes rather than sleeps for these races.
+
+M2 verification (October 21, 2026): all ten app-state tests and both UI journeys passed on iPhone 18 Pro / iOS 27.0. The UI journeys verify Program reference exposure, Bokeh switching, manual filter selection/automatic restore, and Hold/manual EV/Resume. iPhone 17e normal and largest accessibility-size layouts were visually inspected; status/actions stack vertically and the mode control uses a menu at accessibility sizes. The simulator text-size setting was restored after inspection. Full VoiceOver traversal and physical-device validation remain later gates.

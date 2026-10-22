@@ -2,42 +2,97 @@ import Foundation
 import Observation
 import ExposureCore
 
-/// Owns the demo screen's state. The view owns the loading task, which is cancelled
-/// when it disappears. No camera session or background sampling runs in this slice.
+/// Main-actor owner of screen inputs and accepted readings. SwiftUI owns each
+/// sampling task via requestID; generation checks discard superseded completions.
 @MainActor @Observable
 final class MeterViewModel {
+    enum ReadingKind: Equatable { case simulated, held, manual }
     enum State: Equatable {
-        case idle
-        case loading
-        case ready(ExposureReading, ProgramAssessment)
+        case idle, settling, stale
+        case ready(ExposureReading, ReadingKind)
         case failed(String)
     }
-
     private(set) var state: State = .idle
+    private(set) var requestID = 0
+    var isProgram = false
+    var cameraISO = 100
+    var compensationThirds = 0
+    var programAperture = 8.0
+    var selectedFilter: NDFilter?
+    var showsGrid = true
     private let lightMeter: any LightMeter
+    private let now: () -> Date
 
-    init(lightMeter: any LightMeter) { self.lightMeter = lightMeter }
+    init(lightMeter: any LightMeter, now: @escaping () -> Date = Date.init, referenceScenario: Bool = false) {
+        self.lightMeter = lightMeter
+        self.now = now
+        if referenceScenario { isProgram = true; cameraISO = 400 }
+    }
 
-    func load() async {
-        guard state == .idle else { return }
-        state = .loading
-        do {
-            let reading = try await lightMeter.reading()
-            try Task.checkCancellation()
-            let assessment = try ProgramExposure.assess(
-                sceneEV100: reading.sceneEV100, cameraISO: 400,
-                exposureCompensationEV: 0, targetAperture: 8, ndStops: 3
-            )
-            state = .ready(reading, assessment)
-        } catch is CancellationError {
-            state = .idle
-        } catch {
-            state = .failed("The demo reading could not be calculated. Try again.")
+    var targetAperture: Double { isProgram ? programAperture : 3.5 }
+    var reading: ExposureReading? {
+        guard case let .ready(reading, _) = state else { return nil }
+        return reading
+    }
+    var kind: ReadingKind? {
+        guard case let .ready(_, kind) = state else { return nil }
+        return kind
+    }
+    var calculation: Result<NDRecommendation, Error>? {
+        guard let reading else { return nil }
+        return Result {
+            let configuration = try ExposureConfiguration(
+                cameraISO: cameraISO, exposureCompensationEV: Double(compensationThirds) / 3,
+                mode: isProgram ? .program(targetAperture: programAperture) : .bokeh)
+            return try NDRecommendationEngine.recommend(sceneEV100: reading.sceneEV100,
+                configuration: configuration, inventory: NDFilter.catalog, selectedFilter: selectedFilter)
         }
     }
 
-    func retry() async {
+    func load() async {
+        guard state == .idle else { return }
+        let generation = requestID
+        state = .settling
+        do {
+            let sample = try await lightMeter.reading()
+            try Task.checkCancellation()
+            guard generation == requestID else { return }
+            guard sample.sceneEV100.isFinite else { throw ExposureError.invalidSceneEV }
+            state = .ready(sample, .simulated)
+        } catch is CancellationError {
+            if generation == requestID { state = .idle }
+        } catch {
+            if generation == requestID { state = .failed("The simulated reading is unavailable. Retry or enter a manual EV.") }
+        }
+    }
+
+    func hold() {
+        guard case let .ready(reading, .simulated) = state else { return }
+        state = .ready(reading, .held)
+    }
+
+    func resume() {
+        requestID += 1
         state = .idle
-        await load()
+    }
+
+    /// Manual planning is bounded to −20…30 EV100 to keep entry mistakes explicit.
+    /// Invalid text leaves the accepted reading and pending request untouched.
+    func enterManualEV(_ text: String) -> Bool {
+        let normalized = text.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: ",", with: ".")
+        guard let ev = Double(normalized), ev.isFinite, (-20...30).contains(ev) else { return false }
+        requestID += 1
+        state = .ready(ExposureReading(sceneEV100: ev, timestamp: now(), source: .manual), .manual)
+        return true
+    }
+
+    func becameInactive() {
+        if kind == .held || kind == .manual { return }
+        requestID += 1
+        state = .stale
+    }
+
+    func becameActive() {
+        if state == .stale { resume() }
     }
 }
