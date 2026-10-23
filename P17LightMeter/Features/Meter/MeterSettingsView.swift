@@ -42,7 +42,11 @@ struct MeterSettingsView: View {
                     NavigationLink("My filters") { OwnedFiltersView(model: model) }
                     NavigationLink("Calibration") { CalibrationView(model: model) }
                 }
-                Section("Composition") { Toggle("Show thirds grid", isOn: $model.showsGrid) }
+                Section("Composition") {
+                    Toggle("Show thirds grid", isOn: $model.showsGrid)
+                    Button("Center metering") { model.meterAtCenter() }.disabled(!model.canChooseMeteringPoint)
+                    Text("Tap the preview to choose exposure weighting, then press Read Scene. Preview taps do not take a measurement.").font(.footnote)
+                }
                 Section("Saved data") {
                     Text("Settings, owned filters, and reference corrections are saved on this iPhone. Readings are not saved. Demo launches use temporary settings.")
                     if let message = model.settingsMessage {

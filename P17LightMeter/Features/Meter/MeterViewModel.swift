@@ -6,9 +6,9 @@ import ExposureCore
 /// sampling task via requestID; generation checks discard superseded completions.
 @MainActor @Observable
 final class MeterViewModel {
-    enum ReadingKind: Equatable { case simulated, live, held, manual }
+    enum ReadingKind: Equatable { case simulated, measured, manual }
     enum State: Equatable {
-        case idle, requestingPermission, starting, settling, stale, denied, interrupted
+        case idle, requestingPermission, starting, awaitingReading, settling, stale, denied, interrupted
         case ready(ExposureReading, ReadingKind)
         case failed(String)
     }
@@ -27,7 +27,7 @@ final class MeterViewModel {
         }
         var id: Self { self }
     }
-    var cameraMode: CameraMode = .bokeh { didSet { saveSettings() } }
+    var cameraMode: CameraMode = .program { didSet { saveSettings() } }
     var cameraISO = 100 { didSet { saveSettings() } }
     var compensationThirds = 0 { didSet { saveSettings() } }
     // Shared target preference: Slow-speed currently has the same behavior as Program.
@@ -36,9 +36,17 @@ final class MeterViewModel {
     var showsGrid = true { didSet { saveSettings() } }
     let camera: CameraLightMeter?
     private(set) var supportsPointMetering = false
-    private(set) var previewFormat: CameraPreviewFormat?
     private(set) var centerResetID = 0
-    private var awaitsPointReset = false
+    var guideOrientation: GuideOrientation = .portrait
+    private(set) var previewFormat: CameraPreviewFormat?
+    private(set) var isReadingScene = false
+    private(set) var isPreviewReady = false
+    private var currentCameraContext: CameraContext?
+    private var streamActive = false
+    private var isActive = true
+    private var requestedAt: Date?
+    private(set) var measurementRequestID: UUID?
+    private var readingCommand: Task<Void, Never>?
     private let lightMeter: any LightMeter
     private let now: () -> Date
 
@@ -81,22 +89,24 @@ final class MeterViewModel {
         guard let raw = rawReading else { return nil }
         guard raw.source == .camera, let calibration, raw.cameraContext == calibration.context else { return raw }
         return ExposureReading(sceneEV100: raw.sceneEV100 + calibration.offsetEV,
-            timestamp: raw.timestamp, source: raw.source, cameraContext: raw.cameraContext)
+            timestamp: raw.timestamp, source: raw.source, requestID: raw.requestID, cameraContext: raw.cameraContext)
     }
     var calibrationStatus: String {
         guard let calibration else { return "Uncalibrated" }
-        guard let raw = rawReading, raw.source == .camera else { return "Reference correction saved; waiting for live camera" }
+        guard let raw = rawReading, raw.source == .camera else { return "Reference correction saved; waiting for a camera measurement" }
         return raw.cameraContext == calibration.context ? "Reference correction applied" : "Camera configuration changed; correction inactive"
     }
-    /// Only a fresh, settled camera sample can anchor a reference comparison.
+    /// Only an explicitly requested, settled camera measurement from this session
+    /// and configuration can anchor a comparison, within the five-minute entry window.
     func calibrationSample() -> ExposureReading? {
-        guard kind == .live, let raw = rawReading, raw.source == .camera,
+        guard kind == .measured, !isReadingScene, let raw = rawReading, raw.source == .camera,
+              currentCameraContext == raw.cameraContext,
               raw.cameraContext?.isValid == true,
-              (0...ReadingStability.staleInterval).contains(now().timeIntervalSince(raw.timestamp)) else { return nil }
+              (0...Self.maximumCalibrationDraftAgeSeconds).contains(now().timeIntervalSince(raw.timestamp)) else { return nil }
         return raw
     }
     func saveCalibration(sample: ExposureReading, referenceEV100: Double) -> Bool {
-        guard let current = calibrationSample(), current.cameraContext == sample.cameraContext,
+        guard let current = calibrationSample(), current == sample,
               sample.source == .camera, let context = sample.cameraContext,
               (0...Self.maximumCalibrationDraftAgeSeconds).contains(now().timeIntervalSince(sample.timestamp)) else { return false }
         let record = CalibrationRecord(context: context, rawEV100: sample.sceneEV100,
@@ -145,8 +155,9 @@ final class MeterViewModel {
         try settings.validate()
         restoring = true
         defer { restoring = false }
-        guard let mode = CameraMode(rawValue: settings.mode) else { throw SettingsError.invalidData }
-        cameraMode = mode
+        // Program is the requested startup mode, even if the previous session
+        // saved another mode. Keep decoding old mode fields for schema compatibility.
+        cameraMode = .program
         cameraISO = settings.cameraISO
         filmBoxISO = settings.filmBoxISO
         compensationThirds = settings.compensationThirds
@@ -204,9 +215,19 @@ final class MeterViewModel {
         } catch { settingsMessage = "Saved data could not be reset. Check available storage and try again." }
     }
 
-    var canChooseMeteringPoint: Bool {
-        guard supportsPointMetering else { return false }
-        return kind == .live || state == .settling
+    var canChooseMeteringPoint: Bool { supportsPointMetering && isPreviewReady && !isReadingScene }
+    var canReadScene: Bool {
+        guard settingsReady, !isResettingSavedData, !isReadingScene, isActive else { return false }
+        switch state {
+        case .starting, .requestingPermission: return false
+        default: return true
+        }
+    }
+
+    var recommendedAssessment: FilterAssessment? {
+        guard case let .success(result) = calculation,
+              case let .candidate(candidate) = result.recommendation else { return nil }
+        return candidate
     }
 
     var exposureMode: ExposureMode {
@@ -236,93 +257,144 @@ final class MeterViewModel {
         }
     }
 
+    /// Owns the preview subscription independently of the one-shot measurement.
+    /// Accepted readings remain snapshots while subsequent preview frames arrive.
     func load() async {
         await restoreSettings()
-        guard !Task.isCancelled, state == .idle else { return }
+        guard !Task.isCancelled, isActive, !streamActive else { return }
         let generation = requestID
-        state = .settling
+        streamActive = true
+        if reading == nil, !isReadingScene { state = .starting }
+        defer {
+            if generation == requestID {
+                streamActive = false
+                isPreviewReady = false
+            }
+        }
         do {
             let events = await lightMeter.events()
             for try await event in events {
                 try Task.checkCancellation()
                 guard generation == requestID else { return }
                 switch event {
-                case .requestingPermission: state = .requestingPermission
-                case .starting: state = .starting
-                case .settling:
-                    awaitsPointReset = false
-                    state = .settling
-                case .stale: state = .stale
-                case .denied: state = .denied
-                case .interrupted: state = .interrupted
-                case let .unavailable(message): state = .failed(message)
                 case let .previewFormat(format): previewFormat = format
+                case let .cameraContext(context): currentCameraContext = context
                 case let .pointMeteringSupported(supported): supportsPointMetering = supported
+                case .awaitingReading:
+                    isPreviewReady = true
+                    if isReadingScene { sendReadingCommand() }
+                    else if reading == nil { state = .awaitingReading }
+                case .requestingPermission: showPreviewState(.requestingPermission)
+                case .starting: showPreviewState(.starting)
+                case .settling:
+                    if isReadingScene { state = .settling }
+                case .stale: failRequest(.stale)
+                case .denied: failRequest(.denied)
+                case .interrupted: failRequest(.interrupted)
+                case let .unavailable(message): failRequest(.failed(message))
                 case let .reading(sample):
-                    if awaitsPointReset { continue }
+                    // Unsolicited or late samples never replace a measured/manual value.
+                    guard isReadingScene, sample.requestID == measurementRequestID else { continue }
                     guard sample.sceneEV100.isFinite else { throw ExposureError.invalidSceneEV }
                     if sample.source == .camera {
                         let ageSeconds = now().timeIntervalSince(sample.timestamp)
-                        guard (0...ReadingStability.staleInterval).contains(ageSeconds) else {
-                            state = .stale
+                        guard (0...ReadingStability.staleInterval).contains(ageSeconds),
+                              let requestedAt, sample.timestamp >= requestedAt else {
+                            failRequest(.stale)
                             continue
                         }
+                        currentCameraContext = sample.cameraContext
                     }
-                    state = .ready(sample, sample.source == .camera ? .live : .simulated)
+                    isReadingScene = false
+                    requestedAt = nil
+                    state = .ready(sample, sample.source == .camera ? .measured : .simulated)
                 }
             }
-            if generation == requestID, Task.isCancelled || kind == .live { state = .stale }
+            if generation == requestID, isReadingScene { failRequest(.stale) }
         } catch is CancellationError {
-            if generation == requestID { state = .idle }
+            if generation == requestID {
+                isReadingScene = false
+                if reading == nil { state = .idle }
+            }
         } catch {
-            if generation == requestID { state = .failed("The reading is unavailable. Retry or enter a manual EV.") }
+            if generation == requestID { failRequest(.failed("The reading is unavailable. Press Read Scene to retry, or enter a manual EV.")) }
         }
     }
 
-    func hold() {
-        guard case let .ready(reading, kind) = state, kind == .live || kind == .simulated else { return }
-        requestID += 1
-        state = .ready(reading, .held)
+    private func showPreviewState(_ newState: State) {
+        isPreviewReady = false
+        if reading == nil { state = newState }
+    }
+    private func failRequest(_ failure: State) {
+        isPreviewReady = false
+        isReadingScene = false
+        requestedAt = nil
+        // A preview failure does not turn an explicitly measured snapshot into live data.
+        if reading == nil { state = failure }
+    }
+    private func sendReadingCommand() {
+        readingCommand?.cancel()
+        readingCommand = Task {
+            guard !Task.isCancelled, isReadingScene, let id = measurementRequestID else { return }
+            await lightMeter.requestReading(id: id)
+        }
     }
 
-    func pointWillChange() {
-        guard canChooseMeteringPoint else { return }
-        awaitsPointReset = true
+    func readScene() {
+        guard canReadScene else { return }
+        // A failed stream must reconnect before issuing its measurement command.
+        if !isPreviewReady, streamActive { restartPreview() }
+        measurementRequestID = UUID()
+        requestedAt = now()
+        isReadingScene = true
         state = .settling
+        if isPreviewReady { sendReadingCommand() }
+        else if !streamActive { requestID += 1 }
+    }
+
+    func toggleGuideOrientation() {
+        guideOrientation = guideOrientation == .portrait ? .landscape : .portrait
     }
 
     func meterAtCenter() {
         guard canChooseMeteringPoint else { return }
         centerResetID += 1
-        pointWillChange()
         camera?.meter(at: CGPoint(x: 0.5, y: 0.5))
     }
 
-    func resume() {
-        awaitsPointReset = false
+    private func restartPreview() {
+        readingCommand?.cancel()
+        isPreviewReady = false
+        streamActive = false
         supportsPointMetering = false
+        currentCameraContext = nil
+        previewFormat = nil
         centerResetID += 1
         requestID += 1
-        state = .idle
     }
 
-    /// Manual planning is bounded to −20…30 EV100 to keep entry mistakes explicit.
-    /// Invalid text leaves the accepted reading and pending request untouched.
+    /// Manual planning is bounded to −20…30 EV100; it never triggers camera reading.
     func enterManualEV(_ text: String) -> Bool {
         let normalized = text.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: ",", with: ".")
         guard let ev = Double(normalized), ev.isFinite, (-20...30).contains(ev) else { return false }
-        requestID += 1
+        readingCommand?.cancel()
+        isReadingScene = false
+        requestedAt = nil
         state = .ready(ExposureReading(sceneEV100: ev, timestamp: now(), source: .manual), .manual)
         return true
     }
 
     func becameInactive() {
-        if kind == .held || kind == .manual { return }
-        requestID += 1
-        state = .stale
+        isActive = false
+        isReadingScene = false
+        requestedAt = nil
+        restartPreview()
+        if reading == nil { state = .idle }
     }
 
     func becameActive() {
-        if state == .stale { resume() }
+        guard !isActive else { return }
+        isActive = true
+        restartPreview()
     }
 }

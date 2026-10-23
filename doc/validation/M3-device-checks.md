@@ -1,5 +1,7 @@
 # M3 physical-device validation — pending
 
+Current behavior supersedes the full-width experiment: matched optical framing is restored in a narrow viewport, with no wide startup image. Recheck portrait and landscape framing at the same marked position. The right-side Read Scene button takes one measurement; preview taps and foregrounding must not take readings automatically.
+
 The user reports successful app operation on an iPhone 16 Pro Max, and subsequently reports corrected framing almost matches the PENTAX 17. Detailed lifecycle and reference-meter results remain pending.
 The original green guide matched the PENTAX view at 3.2 m versus 2.2 m with the
 PENTAX. The corrected preview passed its simulator geometry/regression tests and

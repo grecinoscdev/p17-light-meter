@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Keeps a raw comparison snapshot while the live meter continues to establish
-/// freshness. Leaving this screen discards the draft, never the saved correction.
+/// Keeps the raw result of an explicit scene reading for reference comparison.
+/// Leaving this screen discards the draft, never the saved correction.
 struct CalibrationView: View {
     let model: MeterViewModel
     @State private var sample: ExposureReading?
@@ -14,10 +14,10 @@ struct CalibrationView: View {
         Form {
             Section("Reference comparison") {
                 Text("Fill the metering area with an evenly lit neutral target. Set a trusted reflected-light reference meter to ISO 100 and measure the same target without a filter. Keep the target and lighting unchanged while entering its EV100.")
-                Text("Resume live metering first. Held, manual, simulated, and unsettled readings cannot be used.")
-                Button("Capture stable reading") {
+                Text("Press Read Scene on the main screen first. Use the resulting camera measurement within five minutes; manual, simulated, and unsettled readings cannot be used.")
+                Button("Use measured scene") {
                     sample = model.calibrationSample()
-                    message = sample == nil ? "Wait for a fresh, stable camera reading and try again." : nil
+                    message = sample == nil ? "Take a new scene reading on the main screen, then try again." : nil
                 }.disabled(model.calibrationSample() == nil)
                 if let sample {
                     Text("Raw phone reading: \(ExposureFormatting.number(sample.sceneEV100, digits: 3)) EV100")
@@ -34,7 +34,7 @@ struct CalibrationView: View {
                         if let reference = referenceEV100, model.saveCalibration(sample: sample, referenceEV100: reference) {
                             self.sample = nil
                             message = "Reference correction saved to current settings."
-                        } else { message = "Enter a reference from −20 to 30 EV100 and keep live metering active. If the camera changed or five minutes passed, capture again." }
+                        } else { message = "Enter a reference from −20 to 30 EV100. If the camera or measurement changed, or five minutes passed, take a new scene reading." }
                     }
                 }
                 if let message { Text(message) }

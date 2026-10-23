@@ -4,25 +4,24 @@ import SwiftUI
 /// The only boundary that translates view coordinates into camera coordinates.
 /// AVFoundation accounts for portrait rotation and the aspect-fill crop.
 struct CameraPreview: UIViewRepresentable {
-    let camera: CameraLightMeter
     let format: CameraPreviewFormat?
+    let orientation: GuideOrientation
+    let camera: CameraLightMeter
     let centerResetID: Int
     let allowsMetering: Bool
-    let onMeteringPointChanged: () -> Void
 
     func makeUIView(context: Context) -> PreviewView {
         let view = PreviewView()
         camera.attachPreview(to: view.previewLayer)
-        view.previewLayer.videoGravity = .resizeAspectFill
         view.addGestureRecognizer(UITapGestureRecognizer(target: view, action: #selector(PreviewView.tapped(_:))))
         return view
     }
     func updateUIView(_ view: PreviewView, context: Context) {
         view.format = format
+        view.orientation = orientation
         view.setNeedsLayout()
         view.resetReticleIfNeeded(id: centerResetID)
         view.onTap = allowsMetering ? { point in
-            onMeteringPointChanged()
             camera.meter(at: point)
         } : nil
     }
@@ -34,6 +33,8 @@ struct CameraPreview: UIViewRepresentable {
     final class PreviewView: UIView {
         let previewLayer = AVCaptureVideoPreviewLayer()
         var format: CameraPreviewFormat?
+        var orientation: GuideOrientation = .portrait
+        private let imageMask = CAShapeLayer()
         var onTap: ((CGPoint) -> Void)?
         private let reticle = UIView()
         private var centerResetID = -1
@@ -45,7 +46,10 @@ struct CameraPreview: UIViewRepresentable {
 
         override init(frame: CGRect) {
             super.init(frame: frame)
+            previewLayer.videoGravity = .resizeAspectFill
             layer.addSublayer(previewLayer)
+            layer.mask = imageMask
+            previewLayer.isHidden = true
             clipsToBounds = true
             reticle.layer.borderWidth = 2
             reticle.layer.borderColor = UIColor.white.cgColor
@@ -59,13 +63,18 @@ struct CameraPreview: UIViewRepresentable {
         required init?(coder: NSCoder) { nil }
         override func layoutSubviews() {
             super.layoutSubviews()
-            // Only image scale changes; the panel and guide retain their existing layout.
+            // Never show the old aspect-fill fallback while awaiting metadata.
+            // The first visible frame already has the PENTAX-matched image scale.
             CATransaction.begin()
             CATransaction.setDisableActions(true)
-            if let format, let imageFrame = PreviewFraming.imageFrame(in: bounds, format: format) {
+            if let format, let imageFrame = PreviewFraming.imageFrame(in: bounds, format: format, orientation: orientation) {
                 previewLayer.frame = imageFrame
+                previewLayer.isHidden = false
+                let visibleImage = imageFrame.intersection(bounds)
+                imageMask.path = UIBezierPath(roundedRect: visibleImage, cornerRadius: 16).cgPath
             } else {
-                previewLayer.frame = bounds
+                previewLayer.isHidden = true
+                imageMask.path = UIBezierPath(roundedRect: bounds, cornerRadius: 16).cgPath
             }
             CATransaction.commit()
             if let connection = previewLayer.connection, connection.isVideoRotationAngleSupported(90) {
@@ -74,10 +83,10 @@ struct CameraPreview: UIViewRepresentable {
             }
         }
         @objc func tapped(_ recognizer: UITapGestureRecognizer) {
-            guard let onTap else { return }
+            guard let onTap, !previewLayer.isHidden else { return }
             let location = recognizer.location(in: self)
-            // Layer size/origin now differ from the view. Convert locally before
-            // AVFoundation applies portrait rotation and its own image mapping.
+            // AVFoundation accounts for portrait rotation and the aspect-fill
+            // crop when translating the tap into a device point.
             let layerPoint = previewLayer.convert(location, from: layer)
             guard previewLayer.bounds.contains(layerPoint) else { return }
             onTap(previewLayer.captureDevicePointConverted(fromLayerPoint: layerPoint))

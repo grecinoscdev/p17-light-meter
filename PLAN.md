@@ -496,3 +496,25 @@ The injected storage actor performs file I/O outside the main actor. A single se
 Implementation may be tested before reference equipment is available, but M4's hardware exit remains open. Record comparisons using [the M4 checklist](doc/validation/M4-calibration-checks.md); do not infer physical accuracy from the automated tests.
 
 Verification on October 22, 2026: 36 app tests passed on the final implementation; four simulator UI journeys passed, including custom-filter entry and disabled calibration capture in simulation. The final unsigned iPhone build passed. ExposureCore was unchanged and its separate tests were not rerun. Hardware/reference-meter validation remains pending.
+
+### Full-width preview — user-selected presentation
+
+After M4 iPhone testing, the user reported the wide rounded preview shrinking into a narrow square-edged image. Startup used aspect-fill; incoming optical metadata then applied the previous PENTAX framing correction. The user explicitly selected a consistently full-width preview after being informed that this changes framing inside the green guide.
+
+The preview now always aspect-fills the rounded panel. Removed the optical display-scaling path and its unused metadata events, retaining the camera configuration identity used for exposure calibration. Tap conversion continues through AVFoundation so it accounts for the aspect-fill crop. The green guide and thirds grid keep their existing dimensions; the bottom “17 × 24 · Approximate guide” caption is removed. The earlier near-match report describes the superseded display mode, not the current full-width preview.
+
+Verification: 34 app tests passed on the iPhone 18 Pro / iOS 27.0 simulator, including three preview/guide layout tests. The unsigned iPhone build passed. The obsolete optical-scaling tests were replaced with full-width layout regressions. UI journeys and ExposureCore were not rerun for this presentation change; physical preview and tap alignment remain for the user's iPhone check.
+
+### Matched framing and on-demand scene readings — supersedes full-width preview
+
+The user reversed the full-width presentation choice: PENTAX matching has priority. Restored optical FOV scaling in a narrow viewport; the preview remains hidden until metadata permits the correct scale, with no aspect-fill fallback. The overlay caption stays removed. Portrait is the startup orientation; landscape swaps the 17 × 24 mm film axes. Both orientations use the resulting guide size and camera FOV to preserve angular framing. On compact displays the guide shrinks uniformly to leave accessible side controls.
+
+The left rail shows the shutter at the recommended ND and the recommended filter card. The right rail provides Read Scene and the orientation toggle (the request named the left side twice; the second pair is placed on the right). Large Dynamic Type moves the summaries/actions into a vertical layout. Detailed filter comparison and exposure warnings remain below.
+
+Camera preview lifetime is now separate from measurement lifetime. Starting the app, tapping the preview, changing orientation, or foregrounding does not take an exposure reading. Read Scene creates a uniquely identified request and a fresh bounded settling window; one stable sample completes it. Further frames do not update the displayed result. Timeout, interruption, or stale frames end the request and require another press. Late responses from older requests cannot replace a newer reading or manual input. Backgrounding stops capture while preserving a completed measured/manual snapshot.
+
+Calibration accepts a settled, explicitly measured camera snapshot from the same session/configuration for up to five minutes. The selected snapshot must still be the latest measurement at save time; manual/simulated/pending/expired values are rejected. This replaces the previous live-reading-only calibration flow. It does not establish accuracy across conditions.
+
+Every launch and saved-data reset selects P / Program; the previous saved mode remains schema-compatible but is intentionally not restored. Portrait orientation is session-only and starts afresh on launch. Other settings and exposure calibration remain persisted.
+
+Verification: 35 app tests and four UI journeys passed on iPhone 18 Pro / iOS 27.0. The reading/manual-entry/orientation journey also passed on iPhone 17e after a compact-screen rail-width correction; exported portrait/landscape screenshots were inspected. The unsigned iPhone build passed. ExposureCore was unchanged and its separate suite was not rerun. Physical portrait/landscape framing, preview taps, camera interruptions, and reference-meter accuracy remain device checks.

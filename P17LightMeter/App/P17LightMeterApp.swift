@@ -23,8 +23,26 @@ struct P17LightMeterApp: App {
 }
 
 /// Explicit opt-in demo; never substitutes for an unavailable physical camera.
-private struct DemoLightMeter: SingleReadingLightMeter {
-    func reading() async throws -> ExposureReading {
-        ExposureReading(sceneEV100: 15, timestamp: Date(), source: .simulated)
+private actor DemoLightMeter: LightMeter {
+    private var continuation: AsyncThrowingStream<MeterEvent, Error>.Continuation?
+    private var subscriptionID: UUID?
+
+    func events() -> AsyncThrowingStream<MeterEvent, Error> {
+        continuation?.finish()
+        let id = UUID()
+        subscriptionID = id
+        let (stream, continuation) = AsyncThrowingStream<MeterEvent, Error>.makeStream(bufferingPolicy: .bufferingNewest(8))
+        self.continuation = continuation
+        continuation.onTermination = { [weak self] _ in Task { await self?.stop(id: id) } }
+        continuation.yield(.awaitingReading)
+        return stream
+    }
+    func requestReading(id: UUID) {
+        continuation?.yield(.reading(ExposureReading(sceneEV100: 15, timestamp: Date(), source: .simulated, requestID: id)))
+    }
+    private func stop(id: UUID) {
+        guard subscriptionID == id else { return }
+        continuation = nil
+        subscriptionID = nil
     }
 }

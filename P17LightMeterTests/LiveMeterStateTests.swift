@@ -1,123 +1,109 @@
 import XCTest
-import Observation
 @testable import P17LightMeter
 
 @MainActor
 final class LiveMeterStateTests: XCTestCase {
     private let now = Date(timeIntervalSince1970: 100)
-
-    private func start(_ model: MeterViewModel) async -> Task<Void, Never> {
-        let started = expectation(description: "Subscription started")
-        withObservationTracking { _ = model.state } onChange: { started.fulfill() }
-        let task = Task { await model.load() }
-        await fulfillment(of: [started], timeout: 2)
-        return task
+    private func reading(_ ev: Double = 15) -> ExposureReading {
+        ExposureReading(sceneEV100: ev, timestamp: now, source: .camera)
     }
-
-    private func deliver(_ event: MeterEvent, through meter: StreamMeter, to model: MeterViewModel) async {
-        let changed = expectation(description: "State changed after meter event")
-        withObservationTracking { _ = model.state } onChange: { changed.fulfill() }
-        meter.continuation.yield(event)
-        await fulfillment(of: [changed], timeout: 2)
-    }
-
-    func testPermissionInterruptionFailureAndStaleRemoveRecommendationsAndRecover() async {
-        let meter = StreamMeter()
+    private func model(_ meter: SceneTestMeter) -> MeterViewModel {
         let date = now
-        let model = MeterViewModel(lightMeter: meter, now: { date })
-        let task = await start(model)
-        let reading = ExposureReading(sceneEV100: 15, timestamp: date, source: .camera)
-        for event in [MeterEvent.requestingPermission, .denied, .starting, .settling, .reading(reading),
-                      .interrupted, .settling, .reading(reading), .stale, .unavailable("Retry"), .reading(reading)] {
-            await deliver(event, through: meter, to: model)
-            if case .reading = event {
-                XCTAssertEqual(model.kind, .live)
-                XCTAssertNotNil(model.calculation)
-            } else { XCTAssertNil(model.calculation) }
-        }
-        task.cancel(); await task.value
+        return MeterViewModel(lightMeter: meter, now: { date })
+    }
+    func testStartupAndUnsolicitedFramesNeverTakeReading() async {
+        let meter = SceneTestMeter(); let model = model(meter)
+        let task = await startPreview(model, meter: meter)
+        XCTAssertEqual(model.state, .awaitingReading)
+        XCTAssertNil(model.reading)
+        meter.continuation.yield(.reading(reading()))
+        meter.continuation.finish(); await task.value
+        XCTAssertNil(model.reading)
         XCTAssertNil(model.calculation)
     }
-
-    func testOldAndFutureCameraTimestampsCannotBeCurrent() async {
+    func testOnePressAcceptsOnlyOneStableResultAndNextPressReplacesIt() async {
+        let meter = SceneTestMeter(); let model = model(meter)
+        let task = await startPreview(model, meter: meter)
+        model.readScene()
+        XCTAssertTrue(model.isReadingScene)
+        XCTAssertFalse(model.canReadScene)
+        let firstID = model.measurementRequestID
+        model.readScene()
+        XCTAssertEqual(model.measurementRequestID, firstID)
+        await sendMeasurement(reading(), model: model, meter: meter)
+        XCTAssertEqual(model.kind, .measured)
+        XCTAssertFalse(model.isReadingScene)
+        model.readScene()
+        XCTAssertNotEqual(model.measurementRequestID, firstID)
+        var late = reading(18); late.requestID = firstID
+        meter.continuation.yield(.reading(late))
+        await sendMeasurement(reading(12), model: model, meter: meter)
+        var unsolicited = reading(20); unsolicited.requestID = model.measurementRequestID
+        meter.continuation.yield(.reading(unsolicited))
+        meter.continuation.finish(); await task.value
+        XCTAssertEqual(model.reading?.sceneEV100, 12)
+    }
+    func testOldAndFutureCameraTimestampsCannotCompleteRequest() async {
         for timestamp in [now.addingTimeInterval(-1.01), now.addingTimeInterval(1)] {
-            let meter = StreamMeter()
-            let date = now
-            let model = MeterViewModel(lightMeter: meter, now: { date })
-            let task = await start(model)
-            await deliver(.reading(ExposureReading(sceneEV100: 15, timestamp: timestamp, source: .camera)), through: meter, to: model)
+            let meter = SceneTestMeter(); let model = model(meter)
+            let task = await startPreview(model, meter: meter)
+            model.readScene()
+            await sendMeasurement(ExposureReading(sceneEV100: 15, timestamp: timestamp, source: .camera), model: model, meter: meter)
             XCTAssertEqual(model.state, .stale)
             XCTAssertNil(model.calculation)
             task.cancel(); await task.value
         }
     }
-
-    func testHeldCameraReadingRetainsProvenanceAndRejectsLateEvents() async {
-        let meter = StreamMeter()
-        let date = now
-        let model = MeterViewModel(lightMeter: meter, now: { date })
-        let task = await start(model)
-        await deliver(.reading(ExposureReading(sceneEV100: 15, timestamp: date, source: .camera)), through: meter, to: model)
-        model.hold()
-        meter.continuation.yield(.interrupted)
-        meter.continuation.finish()
-        await task.value
-        XCTAssertEqual(model.kind, .held)
-        XCTAssertEqual(model.reading?.source, .camera)
-        XCTAssertEqual(model.reading?.timestamp, date)
-        model.becameInactive()
-        XCTAssertEqual(model.kind, .held)
-    }
-
-    func testCancellationTerminatesSubscriptionAndBackgroundRemovesLiveResult() async {
-        let stopped = expectation(description: "Producer receives cancellation")
-        let meter = StreamMeter(onTermination: { stopped.fulfill() })
-        let date = now
-        let model = MeterViewModel(lightMeter: meter, now: { date })
-        let task = await start(model)
-        await deliver(.reading(ExposureReading(sceneEV100: 15, timestamp: date, source: .camera)), through: meter, to: model)
-        model.becameInactive()
-        task.cancel() // SwiftUI cancels the old requestID task on the same transition.
-        await task.value
-        await fulfillment(of: [stopped], timeout: 2)
-        XCTAssertEqual(model.state, .stale)
-        XCTAssertNil(model.calculation)
-        model.becameActive()
-        XCTAssertEqual(model.state, .idle)
-    }
-
-    func testManualEntryRejectsLateCameraFailure() async {
-        let meter = StreamMeter()
-        let model = MeterViewModel(lightMeter: meter)
-        let task = await start(model)
+    func testManualEntryRejectsLateResultAndFailure() async {
+        let meter = SceneTestMeter(); let model = model(meter)
+        let task = await startPreview(model, meter: meter)
+        model.readScene()
+        var late = reading(); late.requestID = model.measurementRequestID
         XCTAssertTrue(model.enterManualEV("8"))
+        meter.continuation.yield(.reading(late))
         meter.continuation.yield(.unavailable("Camera failed"))
-        meter.continuation.finish()
-        await task.value
+        meter.continuation.finish(); await task.value
         XCTAssertEqual(model.kind, .manual)
         XCTAssertEqual(model.reading?.sceneEV100, 8)
-        XCTAssertNotNil(model.calculation)
     }
-
-    func testEndedLiveStreamInvalidatesReading() async {
-        let meter = StreamMeter()
-        let date = now
-        let model = MeterViewModel(lightMeter: meter, now: { date })
-        let task = await start(model)
-        await deliver(.reading(ExposureReading(sceneEV100: 15, timestamp: date, source: .camera)), through: meter, to: model)
-        meter.continuation.finish()
-        await task.value
-        XCTAssertEqual(model.state, .stale)
+    func testBackgroundStopsPreviewButPreservesMeasuredSnapshot() async {
+        let stopped = expectation(description: "Producer receives cancellation")
+        let meter = SceneTestMeter(onTermination: { stopped.fulfill() }); let model = model(meter)
+        let task = await startPreview(model, meter: meter)
+        model.readScene()
+        await sendMeasurement(reading(), model: model, meter: meter)
+        let measured = model.reading
+        model.becameInactive(); task.cancel(); await task.value
+        await fulfillment(of: [stopped], timeout: 3)
+        XCTAssertEqual(model.reading, measured)
+        XCTAssertFalse(model.canReadScene)
+        model.becameActive()
+        XCTAssertEqual(model.reading, measured)
+        XCTAssertFalse(model.isReadingScene)
     }
-}
-
-/// Bounded stream under test control: no camera and no sleeps.
-private struct StreamMeter: LightMeter {
-    let stream: AsyncThrowingStream<MeterEvent, Error>
-    let continuation: AsyncThrowingStream<MeterEvent, Error>.Continuation
-    init(onTermination: (@Sendable () -> Void)? = nil) {
-        (stream, continuation) = AsyncThrowingStream.makeStream(bufferingPolicy: .bufferingNewest(8))
-        continuation.onTermination = { _ in onTermination?() }
+    func testBackgroundCancelsPendingRequestAndDoesNotAutoReadOnReturn() async {
+        let meter = SceneTestMeter(); let model = model(meter)
+        let task = await startPreview(model, meter: meter)
+        model.readScene()
+        model.becameInactive()
+        task.cancel(); await task.value
+        model.becameActive()
+        XCTAssertNil(model.reading)
+        XCTAssertFalse(model.isReadingScene)
     }
-    func events() async -> AsyncThrowingStream<MeterEvent, Error> { stream }
+    func testFailureAndInterruptionEndRequestWithoutAutomaticRecoveryReading() async {
+        for failure in [MeterEvent.interrupted, .stale, .unavailable("Unsettled"), .denied] {
+            let meter = SceneTestMeter(); let model = model(meter)
+            let task = await startPreview(model, meter: meter)
+            model.readScene()
+            await sendEvent(failure, model: model, meter: meter)
+            XCTAssertFalse(model.isReadingScene)
+            XCTAssertNil(model.reading)
+            await sendEvent(.awaitingReading, model: model, meter: meter)
+            meter.continuation.yield(.reading(reading()))
+            meter.continuation.finish(); await task.value
+            XCTAssertEqual(model.state, .awaitingReading)
+            XCTAssertNil(model.reading)
+        }
+    }
 }

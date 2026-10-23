@@ -40,6 +40,6 @@ struct ReadingStability {
     private func waiting(seconds: Double, limited: Bool) -> MeterEvent {
         guard seconds - unsettledSince >= Self.settlingTimeout else { return .settling }
         if limited { return .unavailable("The phone cannot expose this light level reliably. Change the lighting or enter a manual EV.") }
-        return .unavailable("Light is not stable yet. Keep the phone still and aim at an evenly lit area. Metering will recover automatically.")
+        return .unavailable("Light is not stable yet. Keep the phone still and aim at an evenly lit area. Then press Read Scene to try again.")
     }
 }

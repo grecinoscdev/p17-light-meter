@@ -82,7 +82,7 @@ final class SavedSettingsModelTests: XCTestCase {
     func testLatestEditsRestoreWithoutRestoringSceneAndFilmISODoesNotChangeMetering() async throws {
         let store = TestSettingsStore()
         let first = model(store: store)
-        await first.load()
+        await first.restoreSettings(); first.readScene(); await first.load()
         first.cameraMode = .slowSpeed; first.cameraISO = 400; first.compensationThirds = 3
         first.programAperture = 11; first.showsGrid = false
         let before = first.reading
@@ -94,14 +94,14 @@ final class SavedSettingsModelTests: XCTestCase {
         await first.flushPendingSaves()
         let next = model(store: store)
         await next.restoreSettings()
-        XCTAssertEqual(next.cameraMode, .slowSpeed); XCTAssertEqual(next.cameraISO, 400)
+        XCTAssertEqual(next.cameraMode, .program); XCTAssertEqual(next.cameraISO, 400)
         XCTAssertEqual(next.compensationThirds, 3); XCTAssertEqual(next.programAperture, 11)
         XCTAssertFalse(next.showsGrid); XCTAssertEqual(next.filmBoxISO, 200)
         XCTAssertEqual(next.selectedFilter?.stops, 2.5); XCTAssertTrue(next.useOwnedFilters)
         XCTAssertNil(next.reading); XCTAssertEqual(next.state, .idle)
     }
     func testOwnedInventoryNeverFallsBackAndRemovingSelectionClearsIt() async throws {
-        let model = model(); await model.load()
+        let model = model(); model.readScene(); await model.load()
         model.useOwnedFilters = true
         XCTAssertEqual(model.availableFilters.map(\.stops), [0])
         guard case .noMatch = try XCTUnwrap(model.calculation).get().recommendation else { return XCTFail("Must not recommend an unowned filter") }

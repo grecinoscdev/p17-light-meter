@@ -1,10 +1,8 @@
 # Camera metering implementation
 
-`LightMeter.events()` is the injectable boundary. Each subscription owns capture;
-terminating it stops the session. `MeterViewModel` consumes events on the main actor.
-SwiftUI cancels that task when its request ID changes, on Hold/manual input, when the
-scene becomes inactive, or when the view disappears. A generation check prevents a
-late event from replacing a held/manual reading. Resume creates a new subscription.
+`LightMeter.events()` owns a preview subscription. It does not request a measurement. `requestReading(id:)` starts a fresh bounded settling window and returns at most one stable result carrying that ID. `MeterViewModel` accepts only the active request's response. A completed value is a measured snapshot, never a live reading.
+
+SwiftUI owns the preview task via requestID. Backgrounding cancels capture and any unfinished measurement; foregrounding starts preview only. Manual input cancels acceptance of a pending response without freezing the composition preview. A generation check rejects events from old subscriptions, and measurement IDs reject old responses within the same subscription.
 
 `CameraLightMeter` owns one physical rear wide-angle camera, one VGA capture preset,
 and a serial dispatch queue. Configuration, start/stop, exposure-point changes,
@@ -28,32 +26,15 @@ Initial quality policy, pending physical-device tuning:
 - Require four non-adjusting samples spanning at least 0.75 seconds, with no more than 0.2 EV spread. Publish their median at full precision.
 - Invalid samples, exposure adjustment, or scene jumps clear the accepted window. A new stable window is required; the previous recommendation is hidden.
 - An absolute AE target offset greater than 0.5 EV is treated as an exposure-limit/unsettled condition, not as a corrected reading.
-- After three seconds without stability, explain the problem instead of showing an endless spinner. Sampling continues so it can recover automatically.
-- After one second without fresh video frames, publish Stale and clear the window. Interruption events also invalidate live results; interruption end restarts settling. Runtime errors offer explicit Retry.
+- After three seconds without stability, explain the problem instead of showing an endless spinner. The request ends; the user presses Read Scene again to retry.
+- After one second without fresh video frames, publish Stale and clear the window. Interruption ends an unfinished request; reconnecting starts preview without taking a reading. Completed measured snapshots keep their timestamp and provenance.
 - Stable describes repeatability only. There is no numeric accuracy claim or validated Program map. M4 optionally applies a matching saved reference correction after raw metering.
 
-`CameraPreview` owns portrait rotation, field-of-view scaling, and tap conversion
-through `captureDevicePointConverted(fromLayerPoint:)`. The point biases camera AE;
-it is not a calibrated spot meter. Center metering is an accessible alternative.
-The overlay and preview share `CompositionGuide.frame(in:)`, preserving the existing
-panel and guide layout. `PreviewFraming` scales the image so the guide approximates
-the angular extent of a 25 mm lens on 17 × 24 mm film (about 37.56° horizontal and
-51.28° vertical in portrait). It uses the active format's horizontal FOV, corrected
-FOV when geometric distortion correction is enabled, output aspect ratio, and zoom.
-Stabilization is disabled to avoid a variable crop. Capture remains on the physical
-wide camera at zoom 1; the display scale is separate from light-meter calculations.
+`CameraPreview` owns portrait video rotation, optical display scaling, rounded clipping of the visible image, and coordinate conversion for exposure-point taps. It hides the image until `CameraPreviewFormat` is valid; it never flashes an aspect-filled crop. The viewport is narrow from startup, leaving left/right rails for measurement summaries and actions.
 
-The portrait image no longer aspect-fills the wide panel independently of the guide.
-Where the sensor cannot supply the full area outside the guide, those outer areas
-remain background; the image is not stretched or fabricated to fill them. Invalid
-or insufficient FOV metadata retains the original approximate preview. Taps convert
-from view to the resized layer's coordinates first; taps outside its image are ignored.
+`CompositionGuide` supports portrait and landscape film axes, always starting in portrait. `PreviewFraming` divides the guide's vertical angular tangent (24/50 or 17/50) by the phone's portrait-video tangent to obtain the correct image scale. The camera image itself is not rotated by the guide toggle. Smaller panels shrink the guide uniformly. `PreviewFramingTests` independently checks both axes, compact layouts, zoom/output crop, and hidden startup/invalid metadata. The caption remains removed.
 
-This is a pinhole estimate, not calibration of the PENTAX optical viewfinder or
-close-distance parallax. `PreviewFramingTests` covers both axes, panel widths,
-output cropping, zoom, and unavailable metadata. All five geometry tests passed on October 22, 2026, as part of 26 app tests
-and 3 simulator UI journeys. Simulator and unsigned iPhone builds succeeded.
-The user subsequently reported near agreement with the PENTAX 17 on an iPhone 16 Pro Max. Multiple distances, film-plane framing, and precise tap alignment still need device checks.
+Tap conversion uses the resized preview layer, and taps do not request a reading. Center metering is in Settings. Physical framing, landscape alignment, and off-center tap weighting still require an iPhone/PENTAX comparison.
 
 Tests: `ReadingStabilityTests` exercises the pure temporal policy with explicit
 monotonic times. `LiveMeterStateTests` exercises synthetic event streams, lifecycle,

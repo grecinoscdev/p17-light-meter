@@ -6,41 +6,43 @@ struct ExposureReading: Equatable, Sendable {
     let sceneEV100: Double
     let timestamp: Date
     let source: Source
+    // Correlates the result to an explicit Read Scene command; never persisted.
+    var requestID: UUID? = nil
     var cameraContext: CameraContext? = nil
 }
 
 enum MeterEvent: Equatable, Sendable {
-    case requestingPermission, starting, settling, stale, interrupted
+    case requestingPermission, starting, awaitingReading, settling, stale, interrupted
     case denied
     case unavailable(String)
     case reading(ExposureReading)
     case pointMeteringSupported(Bool)
     case previewFormat(CameraPreviewFormat?)
+    case cameraContext(CameraContext?)
 }
 
 /// Each subscription owns capture until cancelled. Events never contain imagery.
 protocol LightMeter: Sendable {
     func events() async -> AsyncThrowingStream<MeterEvent, Error>
+    func requestReading(id: UUID) async
 }
 
-/// Small adapter for deterministic single-reading demos and existing test fixtures.
-protocol SingleReadingLightMeter: LightMeter {
-    func reading() async throws -> ExposureReading
-}
-extension SingleReadingLightMeter {
-    func events() async -> AsyncThrowingStream<MeterEvent, Error> {
-        AsyncThrowingStream { continuation in
-            let task = Task {
-                do {
-                    continuation.yield(.reading(try await reading()))
-                    continuation.finish()
-                } catch { continuation.finish(throwing: error) }
-            }
-            continuation.onTermination = { _ in task.cancel() }
-        }
-    }
-}
-struct FakeLightMeter: SingleReadingLightMeter {
+/// Deterministic one-request source for app tests. Subscription alone never reads.
+actor FakeLightMeter: LightMeter {
     let sample: ExposureReading
-    func reading() async throws -> ExposureReading { sample }
+    private var continuation: AsyncThrowingStream<MeterEvent, Error>.Continuation?
+    init(sample: ExposureReading) { self.sample = sample }
+    func events() -> AsyncThrowingStream<MeterEvent, Error> {
+        let (stream, continuation) = AsyncThrowingStream<MeterEvent, Error>.makeStream()
+        self.continuation = continuation
+        continuation.yield(.awaitingReading)
+        return stream
+    }
+    func requestReading(id: UUID) {
+        var reading = sample
+        reading.requestID = id
+        continuation?.yield(.reading(reading))
+        continuation?.finish()
+        continuation = nil
+    }
 }

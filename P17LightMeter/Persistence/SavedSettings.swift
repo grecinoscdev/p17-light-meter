@@ -14,11 +14,12 @@ struct SavedFilter: Codable, Equatable, Sendable {
 }
 
 /// One small atomic document keeps preferences, inventory, and calibration in sync.
-/// Never stores a live/held/manual reading or turns a saved scene into a fresh one.
+/// Never stores a measured/manual reading or turns a saved scene into a fresh one.
 struct SavedSettings: Codable, Equatable, Sendable {
     static let maximumCustomStops = 20.0 // Explicit UI entry bound, not a camera limit.
     var schemaVersion = 1
-    var mode = "bokeh"
+    // Retained for v1 file compatibility; the screen always starts in Program.
+    var mode = "program"
     var cameraISO = 100
     var filmBoxISO: Int?
     var compensationThirds = 0

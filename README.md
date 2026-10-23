@@ -2,9 +2,11 @@
 
 A native iPhone light meter in development for PENTAX 17 photographers. It will measure scene light and help answer: **“Which ND filter should I use for this shot?”**
 
-**Current status: M4 calibration and persistence are implemented; reference-meter validation remains pending.** The default launch uses the fixed rear wide-angle camera with permission handling, preview/tap metering, settling, live EV100, Hold/manual input, and interruption recovery. Settings now survive relaunches. Live readings remain **uncalibrated** until a matching reference correction is saved.
+**Current status: M4 calibration and persistence are implemented; reference-meter validation remains pending.** Camera preview is live, but exposure readings are now **on demand**: press **Read Scene** to take one stable measurement. The result stays unchanged until the next request or manual input. Every launch starts in **P / Program** with a **portrait** guide; other saved preferences restore normally.
 
-The user tested capture and the corrected green-guide framing on an **iPhone 16 Pro Max**, reporting that framing is almost the same as the PENTAX 17. The guide remains approximate: this comparison does not establish metering accuracy or film-plane framing across distances.
+PENTAX-matched optical framing is restored. The preview starts in its narrow panel and stays hidden until valid optical metadata is available, avoiding the old wide-view flash. The bottom caption remains removed. The left rail shows shutter speed at the recommended ND and its filter card; the right rail has Read Scene and the portrait/landscape toggle. The landscape guide swaps the film axes while preserving their angular extent. The earlier portrait match was user-tested on an iPhone 16 Pro Max; the revised presentation and landscape guide still need an iPhone comparison.
+
+Latest verification: **35 app tests and 4 UI journeys passed** on iPhone 18 Pro / iOS 27.0. The reading/rotation journey also passed on the smaller iPhone 17e after correcting side-control widths; its portrait/landscape screenshots were inspected. The unsigned iPhone build passed. Physical framing and on-demand camera behavior still need an iPhone check.
 
 ## Start here
 
@@ -23,8 +25,8 @@ The PNG uses an earlier name. The app’s display name is **P17 Light Meter**, a
 - Account for the photographer’s PENTAX ISO dial and exposure compensation.
 - Recommend an ND filter for Bokeh, a preferred aperture in P / Program or Slow-speed.
 - Compare filters through a native filter wheel, including a no-filter option and the user’s owned filters.
-- Show the required shutter, exposure limits, and whether the reading is live, held, manual, or still settling.
-- Offer tap-to-meter, Hold / Resume, manual EV entry, and device calibration.
+- Show the required shutter, exposure limits, and whether the reading is measured, manual, or still settling.
+- Offer exposure-point selection, on-demand Read Scene, manual EV entry, and device calibration.
 - Provide an approximate half-frame composition guide based on the reference design.
 
 The planned app works offline with settings and calibration stored on the device. v1 does not require an account, record photos, upload camera imagery, or control the PENTAX remotely.
@@ -54,7 +56,7 @@ Current stack:
 - Xcode project with shared `P17LightMeter` scheme and app/unit/UI test targets.
 - Xcode 27.1 / Swift 6.4 on this development machine; older toolchains have not been verified. The project uses Xcode's synchronized source folders.
 
-Open `P17LightMeter.xcodeproj` and select the `P17LightMeter` scheme. On a physical iPhone, run with no launch arguments and allow camera access. First-launch defaults remain Bokeh / ISO 100 / EC 0; subsequent launches restore saved settings. The simulator has no rear camera: the default launch explains that limitation and offers manual EV. For the interactive EV15 demo, add `--demo-meter` in Scheme → Run → Arguments. `--reference-scenario` also opts into simulation and selects Program / ISO 400 / f/8, with ND8 at 1/256 s. Remove both arguments to test real metering. Demo/reference launches use temporary settings and never overwrite normal saved data. `--isolated-settings` also disables persistence for automated no-camera tests.
+Open `P17LightMeter.xcodeproj` and select the `P17LightMeter` scheme. On a physical iPhone, run with no launch arguments and allow camera access. Every launch starts in P / Program with a portrait guide. First-launch defaults are ISO 100 / EC 0; subsequent launches restore those and other saved preferences. Previously saved mode values remain decodable, but do not override Program at startup. The simulator has no rear camera: the default launch explains that limitation and offers manual EV. For the interactive EV15 demo, add `--demo-meter` in Scheme → Run → Arguments. `--reference-scenario` also opts into simulation and selects Program / ISO 400 / f/8, with ND8 at 1/256 s. Press Read Scene to obtain the demo result. Remove both arguments to test real metering. Demo/reference launches use temporary settings and never overwrite normal saved data. `--isolated-settings` also disables persistence for automated no-camera tests.
 
 From the repository root:
 
@@ -143,15 +145,15 @@ Update this README when setup, implemented features, or verification commands ch
 - Switch between Bokeh, P / Program, and Slow-speed. Bokeh targets f/3.5. P / Program and Slow-speed share the same editable aperture preference and calculation behavior for now. Both show required exposures outside 1/350…4 s as out of range. Slow-speed remains a separate selection for future features.
 - Open Camera settings (sliders icon or ISO/target pill) to change ISO, EC, Program target, or the thirds grid. Optional film-box ISO is advisory; calculations always use the PENTAX dial ISO.
 - In **My filters**, choose owned catalog filters or add fractional attenuation in stops. Enable **Use my filters** to restrict recommendations to that inventory plus no filter. An empty inventory never silently uses the catalog.
-- In **Calibration**, use a stable live camera reading of an evenly lit neutral target and enter a trusted reflected meter's EV100 at ISO 100. Preview and save the correction. Manual, held, and simulated readings cannot create a correction. Reset removes it.
+- In **Calibration**, use a stable camera measurement requested with Read Scene of an evenly lit neutral target and enter a trusted reflected meter's EV100 at ISO 100. Preview and save the correction. The measurement must be from this session, unchanged, and no older than five minutes. Manual and simulated readings cannot create a correction. Reset removes it.
 - Settings, selected filter, inventory, and calibration are stored in one versioned atomic JSON file in Application Support. Scene readings are never restored. A correction applies only to the same local device, physical camera, and capture/OS configuration. A mismatch leaves the raw reading visible with an inactive-correction warning.
 - Save failures show a retry message. Unreadable or unsupported saved data is preserved and autosaving pauses until you explicitly choose **Reset saved data** in Settings. That reset restores all defaults, empties owned filters, and removes calibration.
 - Tap a filter card to compare it. The selected filter and recommended filter remain separately labeled. Use recommendation restores automatic selection. The app cannot detect the mounted PENTAX filter.
-- Hold freezes the accepted camera or simulated reading and timestamp while settings continue recalculating. Resume metering restarts capture and settling; Resume simulation accepts a fresh EV15 sample.
+- Press **Read Scene** to take one measurement after settling. Exposure and ND remain based on that timestamped snapshot while the preview stays live. A new request replaces it; a failed request shows an explicit error. The demo follows the same button-driven behavior.
 - Tap the EV pill for manual input, including negative EV. The supported planning-entry range is −20…30 EV100; invalid input leaves the previous reading intact. Manual readings remain visibly Manual.
-- Backgrounding stops capture and invalidates unheld readings. Held/manual values remain labeled; returning to the foreground restarts sampling when needed.
-- On a real iPhone, tap the preview to bias autoexposure toward that area, or use Center metering. This is not a calibrated spot meter. The camera preview remains an approximate composition guide.
-- Permission denial offers Settings and manual entry. Unsettled/stale/interrupted readings hide recommendations. Stable light recovers automatically; a runtime camera failure offers Retry.
+- Backgrounding stops capture and cancels an unfinished request. Completed measurements and manual values remain labeled. Returning starts only the preview, never a new measurement.
+- On a real iPhone, tap the preview to choose exposure weighting, or use Center metering in Settings, then press Read Scene. A tap alone does not update the measurement. This is not a calibrated spot meter.
+- Permission denial offers Settings and manual entry. An unsettled or interrupted request requires another Read Scene press. Completed snapshots are not relabeled as fresh when the camera reconnects.
 - Results and controls scroll on compact displays. The approximate guide collapses at accessibility text sizes. No animation is required for any interaction.
 
 The simulator may take time to start on this development machine. Run the **P17LightMeter** scheme with ⌘R, or open **P17 Light Meter** in Simulator; the UI-test runner is a separate app.

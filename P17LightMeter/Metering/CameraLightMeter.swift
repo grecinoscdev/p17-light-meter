@@ -25,12 +25,15 @@ final class CameraLightMeter: NSObject, LightMeter, AVCaptureVideoDataOutputSamp
     private var subscriptionID: UUID?
     private var observers: [NSObjectProtocol] = []
     private var watchdog: DispatchSourceTimer?
+    private var pendingReadingID: UUID?
+    private var readingRequested: Bool { pendingReadingID != nil }
+    private var previewFormat: CameraPreviewFormat?
+    private var currentContext: CameraContext?
     private var stability = ReadingStability(seconds: 0)
     private var lastSampleSeconds = 0.0
     private var lastFrameSeconds = 0.0
     private var lastPresentationSeconds = -Double.infinity
     private var lastEvent: MeterEvent?
-    private var previewFormat: CameraPreviewFormat?
     private enum CaptureStatus { case stopped, running, interrupted, failed }
     private var captureStatus: CaptureStatus = .stopped
     // Half a stop residual is a conservative AE failure gate, pending device validation.
@@ -138,6 +141,19 @@ final class CameraLightMeter: NSObject, LightMeter, AVCaptureVideoDataOutputSamp
         }
     }
 
+    /// Preview stays running; each command starts a fresh bounded settling window.
+    func requestReading(id: UUID) async {
+        await withCheckedContinuation { continuation in
+            captureQueue.async {
+                if self.captureStatus == .running {
+                    self.pendingReadingID = id
+                    self.resetWindow()
+                }
+                continuation.resume()
+            }
+        }
+    }
+
     /// Coordinates are converted by the preview layer, never by the feature/view model.
     func meter(at point: CGPoint) {
         guard point.x.isFinite, point.y.isFinite, (0...1).contains(point.x), (0...1).contains(point.y) else { return }
@@ -161,7 +177,7 @@ final class CameraLightMeter: NSObject, LightMeter, AVCaptureVideoDataOutputSamp
         lastFrameSeconds = seconds
         lastPresentationSeconds = -.infinity
         lastEvent = nil
-        publish(.settling)
+        publish(readingRequested ? .settling : .awaitingReading)
     }
 
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
@@ -178,7 +194,8 @@ final class CameraLightMeter: NSObject, LightMeter, AVCaptureVideoDataOutputSamp
         lastFrameSeconds = seconds
         guard seconds - lastSampleSeconds >= ReadingStability.sampleInterval else { return }
         lastSampleSeconds = seconds
-        updatePreviewFormat(camera: camera, sampleBuffer: sampleBuffer)
+        updatePreviewMetadata(camera: camera, sampleBuffer: sampleBuffer)
+        guard readingRequested else { return }
         // Device exposure properties describe the current AE solution. Frame callbacks
         // establish freshness; they are not a calibrated, per-pixel luminance measure.
         let sceneEV100 = try? SceneExposure.ev100(phoneAperture: Double(camera.lensAperture),
@@ -190,9 +207,37 @@ final class CameraLightMeter: NSObject, LightMeter, AVCaptureVideoDataOutputSamp
         let event = stability.accept(sceneEV100: sceneEV100, adjusting: camera.isAdjustingExposure,
             exposureLimited: limited, seconds: seconds, timestamp: Date().addingTimeInterval(-frameAgeSeconds))
         if case .reading(var reading) = event {
-            reading.cameraContext = calibrationContext(camera: camera, sampleBuffer: sampleBuffer)
+            reading.cameraContext = currentContext
+            reading.requestID = pendingReadingID
+            pendingReadingID = nil
             publish(.reading(reading))
-        } else { publish(event) }
+        } else {
+            if case .unavailable = event { pendingReadingID = nil }
+            publish(event)
+        }
+    }
+
+    /// Preview geometry and calibration identity do not require taking a reading.
+    private func updatePreviewMetadata(camera: AVCaptureDevice, sampleBuffer: CMSampleBuffer) {
+        guard let description = CMSampleBufferGetFormatDescription(sampleBuffer) else { return }
+        let activeFormat = camera.activeFormat
+        let dimensions = CMVideoFormatDescriptionGetDimensions(activeFormat.formatDescription)
+        let outputDimensions = CMVideoFormatDescriptionGetDimensions(description)
+        let fieldOfView = camera.isGeometricDistortionCorrectionEnabled
+            ? activeFormat.geometricDistortionCorrectedVideoFieldOfView : activeFormat.videoFieldOfView
+        let format = CameraPreviewFormat(horizontalFieldOfViewDegrees: Double(fieldOfView),
+            formatWidth: Double(dimensions.width), formatHeight: Double(dimensions.height),
+            outputWidth: Double(outputDimensions.width), outputHeight: Double(outputDimensions.height),
+            zoomFactor: Double(camera.videoZoomFactor))
+        let context = calibrationContext(camera: camera, sampleBuffer: sampleBuffer)
+        if format != previewFormat {
+            previewFormat = format
+            continuation?.yield(.previewFormat(format))
+        }
+        if context != currentContext {
+            currentContext = context
+            continuation?.yield(.cameraContext(context))
+        }
     }
 
     /// Called only on captureQueue. Point-of-interest changes do not change the
@@ -220,26 +265,14 @@ final class CameraLightMeter: NSObject, LightMeter, AVCaptureVideoDataOutputSamp
             configurationIdentifier: configurationParts.joined(separator: "|"))
     }
 
-    private func updatePreviewFormat(camera: AVCaptureDevice, sampleBuffer: CMSampleBuffer) {
-        guard let description = CMSampleBufferGetFormatDescription(sampleBuffer) else { return }
-        let activeFormat = camera.activeFormat
-        let dimensions = CMVideoFormatDescriptionGetDimensions(activeFormat.formatDescription)
-        let outputDimensions = CMVideoFormatDescriptionGetDimensions(description)
-        let fieldOfView = camera.isGeometricDistortionCorrectionEnabled
-            ? activeFormat.geometricDistortionCorrectedVideoFieldOfView : activeFormat.videoFieldOfView
-        previewFormat = CameraPreviewFormat(horizontalFieldOfViewDegrees: Double(fieldOfView),
-            formatWidth: Double(dimensions.width), formatHeight: Double(dimensions.height),
-            outputWidth: Double(outputDimensions.width), outputHeight: Double(outputDimensions.height),
-            zoomFactor: Double(camera.videoZoomFactor))
-    }
-
     private func startWatchdog() {
         let timer = DispatchSource.makeTimerSource(queue: captureQueue)
         timer.schedule(deadline: .now() + .milliseconds(250), repeating: .milliseconds(250))
         timer.setEventHandler { [weak self] in
-            guard let self, self.captureStatus == .running else { return }
+            guard let self, self.captureStatus == .running, self.readingRequested else { return }
             if ProcessInfo.processInfo.systemUptime - self.lastFrameSeconds > ReadingStability.staleInterval {
                 self.stability = ReadingStability(seconds: ProcessInfo.processInfo.systemUptime)
+                self.pendingReadingID = nil
                 self.publish(.stale)
             }
         }
@@ -257,6 +290,7 @@ final class CameraLightMeter: NSObject, LightMeter, AVCaptureVideoDataOutputSamp
                     guard self.subscriptionID == id else { return }
                     if name == AVCaptureSession.wasInterruptedNotification {
                         guard self.captureStatus == .running else { return }
+                        self.pendingReadingID = nil
                         self.captureStatus = .interrupted
                         self.publish(.interrupted)
                     } else if name == AVCaptureSession.interruptionEndedNotification {
@@ -292,12 +326,16 @@ final class CameraLightMeter: NSObject, LightMeter, AVCaptureVideoDataOutputSamp
             continuation?.yield(.pointMeteringSupported(device.isExposurePointOfInterestSupported))
         }
         continuation?.yield(.previewFormat(previewFormat))
+        continuation?.yield(.cameraContext(currentContext))
         continuation?.yield(event)
         lastEvent = event
     }
 
     private func stop() {
         captureStatus = .stopped
+        pendingReadingID = nil
+        previewFormat = nil
+        currentContext = nil
         watchdog?.cancel(); watchdog = nil
         for observer in observers { NotificationCenter.default.removeObserver(observer) }
         observers.removeAll()
@@ -308,7 +346,6 @@ final class CameraLightMeter: NSObject, LightMeter, AVCaptureVideoDataOutputSamp
         for output in session.outputs { session.removeOutput(output) }
         session.commitConfiguration()
         device = nil; output = nil
-        previewFormat = nil
         continuation?.finish(); continuation = nil
         subscriptionID = nil; lastEvent = nil
     }
