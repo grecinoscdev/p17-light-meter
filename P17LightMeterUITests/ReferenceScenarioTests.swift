@@ -87,6 +87,9 @@ final class ReferenceScenarioTests: XCTestCase {
         XCTAssertEqual(app.staticTexts["reading"].label, "EV100 15")
         XCTAssertTrue(app.staticTexts["viewfinderShutter"].exists)
         XCTAssertTrue(app.buttons["viewfinderRecommendation"].exists)
+        let fixedControls = [app.buttons["readScene"], app.buttons["guideOrientation"],
+            app.buttons["viewfinderRecommendation"], app.staticTexts["viewfinderShutter"]]
+        let portraitFrames = fixedControls.map(\.frame)
         let portrait = XCTAttachment(screenshot: app.screenshot())
         portrait.name = "Measured portrait layout"
         portrait.lifetime = .keepAlways
@@ -95,6 +98,7 @@ final class ReferenceScenarioTests: XCTestCase {
         XCTAssertEqual(app.buttons["guideOrientation"].value as? String, "landscape")
         XCTAssertLessThanOrEqual(app.buttons["guideOrientation"].frame.maxX, app.frame.maxX - 16)
         XCTAssertGreaterThanOrEqual(app.buttons["viewfinderRecommendation"].frame.minX, app.frame.minX + 16)
+        XCTAssertEqual(fixedControls.map(\.frame), portraitFrames, "Rotating the guide must not resize or move side controls")
         let landscape = XCTAttachment(screenshot: app.screenshot())
         landscape.name = "Measured landscape layout"
         landscape.lifetime = .keepAlways

@@ -31,13 +31,17 @@ final class PreviewFramingTests: XCTestCase {
     }
     func testCompactPanelsPreserveOpticalRatiosAndReserveButtonSpace() throws {
         for availableWidth in [280.0, 335, 400, 500] {
+            let side = CompositionGuide.previewSide(availableWidth: availableWidth)
+            XCTAssertGreaterThanOrEqual(availableWidth - side, 152)
+            let bounds = CGRect(x: 0, y: 0, width: side, height: side)
+            let portraitImage = try XCTUnwrap(PreviewFraming.imageFrame(in: bounds, format: format()))
             for orientation in GuideOrientation.allCases {
-                let width = CompositionGuide.previewWidth(availableWidth: availableWidth, orientation: orientation)
-                XCTAssertGreaterThanOrEqual(availableWidth - width, 152)
-                let bounds = CGRect(x: 0, y: 0, width: width, height: 240)
                 let guide = CompositionGuide.frame(in: bounds, orientation: orientation)
                 let image = try XCTUnwrap(PreviewFraming.imageFrame(in: bounds, format: format(), orientation: orientation))
                 XCTAssertTrue(bounds.contains(guide))
+                // Only the film guide rotates; the camera image keeps the same scale.
+                XCTAssertEqual(image.width, portraitImage.width, accuracy: 1e-10)
+                XCTAssertEqual(image.height, portraitImage.height, accuracy: 1e-10)
                 XCTAssertEqual(guide.height / image.height, orientation == .portrait ? 0.48 : 0.34, accuracy: 1e-12)
             }
         }

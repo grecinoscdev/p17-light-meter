@@ -518,3 +518,9 @@ Calibration accepts a settled, explicitly measured camera snapshot from the same
 Every launch and saved-data reset selects P / Program; the previous saved mode remains schema-compatible but is intentionally not restored. Portrait orientation is session-only and starts afresh on launch. Other settings and exposure calibration remain persisted.
 
 Verification: 35 app tests and four UI journeys passed on iPhone 18 Pro / iOS 27.0. The reading/manual-entry/orientation journey also passed on iPhone 17e after a compact-screen rail-width correction; exported portrait/landscape screenshots were inspected. The unsigned iPhone build passed. ExposureCore was unchanged and its separate suite was not rerun. Physical portrait/landscape framing, preview taps, camera interruptions, and reference-meter accuracy remain device checks.
+
+### Fixed square composition viewport
+
+The preview now uses the same square bounds for portrait and landscape guides. Its side length is capped at 240 points and reserves the existing side-control space on compact screens. Only the green film guide changes orientation; side-control sizes and positions stay fixed. The matched optical scaling remains unchanged, and in square bounds the camera image scale is identical for both orientations. The side rails keep their 240-point height to accommodate the buttons on smaller screens.
+
+Verification: six framing tests and the reading/manual-entry/orientation UI journey passed on iPhone 17e / iOS 27.0. The UI regression compares shutter, ND card, Read Scene, and Rotate frames before and after rotation. Exported screenshots confirm square bounds and fixed side controls. Physical-camera appearance remains an iPhone check.

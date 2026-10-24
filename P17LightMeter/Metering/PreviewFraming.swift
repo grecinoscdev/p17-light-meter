@@ -25,10 +25,10 @@ enum CompositionGuide {
         return CGRect(x: bounds.midX - width / 2, y: bounds.midY - height / 2, width: width, height: height)
     }
 
-    static func previewWidth(availableWidth: Double, orientation: GuideOrientation) -> Double {
+    /// A square viewport keeps both side rails fixed when only the guide rotates.
+    static func previewSide(availableWidth: Double) -> Double {
         // Reserve two 64-point rails and 12-point gaps for readable 44-point buttons.
-        let preferredWidth = orientation == .portrait ? 180.5 : 240.0
-        return max(0, min(preferredWidth, availableWidth - 152))
+        return max(0, min(240, availableWidth - 152))
     }
 }
 

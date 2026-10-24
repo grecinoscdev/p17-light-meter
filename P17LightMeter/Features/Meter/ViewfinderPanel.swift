@@ -14,9 +14,8 @@ struct ViewfinderPanel: View {
             }
         } else {
             GeometryReader { geometry in
-                let previewWidth = CompositionGuide.previewWidth(availableWidth: geometry.size.width,
-                    orientation: model.guideOrientation)
-                let railWidth = max(0, (geometry.size.width - previewWidth - 24) / 2)
+                let previewSide = CompositionGuide.previewSide(availableWidth: geometry.size.width)
+                let railWidth = max(0, (geometry.size.width - previewSide - 24) / 2)
                 HStack(spacing: 12) {
                     recommendationSummary.frame(width: railWidth, height: 240)
                     ZStack {
@@ -28,7 +27,7 @@ struct ViewfinderPanel: View {
                         DemoViewfinder(showsGrid: model.showsGrid, hasCamera: model.camera != nil,
                             orientation: model.guideOrientation).allowsHitTesting(false)
                     }
-                    .frame(width: previewWidth, height: 240)
+                    .frame(width: previewSide, height: previewSide)
                     .clipped()
                     readingActions.frame(width: railWidth, height: 240)
                 }.transaction { $0.animation = nil }

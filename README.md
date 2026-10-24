@@ -4,9 +4,11 @@ A native iPhone light meter in development for PENTAX 17 photographers. It will 
 
 **Current status: M4 calibration and persistence are implemented; reference-meter validation remains pending.** Camera preview is live, but exposure readings are now **on demand**: press **Read Scene** to take one stable measurement. The result stays unchanged until the next request or manual input. Every launch starts in **P / Program** with a **portrait** guide; other saved preferences restore normally.
 
-PENTAX-matched optical framing is restored. The preview starts in its narrow panel and stays hidden until valid optical metadata is available, avoiding the old wide-view flash. The bottom caption remains removed. The left rail shows shutter speed at the recommended ND and its filter card; the right rail has Read Scene and the portrait/landscape toggle. The landscape guide swaps the film axes while preserving their angular extent. The earlier portrait match was user-tested on an iPhone 16 Pro Max; the revised presentation and landscape guide still need an iPhone comparison.
+PENTAX-matched optical framing is restored. The preview uses a square viewport of the same size in portrait and landscape, keeping both side rails fixed. It stays hidden until valid optical metadata is available, avoiding the old wide-view flash. The bottom caption remains removed. The left rail shows shutter speed at the recommended ND and its filter card; the right rail has Read Scene and the portrait/landscape toggle. The landscape guide swaps the film axes while preserving their angular extent. The earlier portrait match was user-tested on an iPhone 16 Pro Max; the revised presentation and landscape guide still need an iPhone comparison.
 
-Latest verification: **35 app tests and 4 UI journeys passed** on iPhone 18 Pro / iOS 27.0. The reading/rotation journey also passed on the smaller iPhone 17e after correcting side-control widths; its portrait/landscape screenshots were inspected. The unsigned iPhone build passed. Physical framing and on-demand camera behavior still need an iPhone check.
+Latest verification for the square viewport: **6 framing tests and the reading/rotation UI journey passed** on iPhone 17e / iOS 27.0. The journey verifies unchanged side-control frames after rotation; portrait/landscape screenshots were inspected. The prior implementation passed 35 app tests, 4 UI journeys, and an unsigned iPhone build, and the user subsequently tested it on device. The square viewport still needs an iPhone visual check.
+
+The app icon uses the supplied Golden Hour artwork in `P17LightMeter/Assets.xcassets/AppIcon.appiconset`. Its opaque 1024 × 1024 PNG is the source for Xcode-generated iPhone icon sizes.
 
 ## Start here
 
